@@ -1,4 +1,4 @@
-package lm.backend.entity;
+package lm.configuration.entity;
 
 public record GenerationConfig(
         int maxTokens,

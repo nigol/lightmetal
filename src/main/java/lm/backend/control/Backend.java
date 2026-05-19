@@ -3,8 +3,8 @@ package lm.backend.control;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
-import lm.backend.entity.GenerationConfig;
-import lm.backend.entity.Token;
+import lm.configuration.entity.GenerationConfig;
+import lm.configuration.entity.Token;
 
 public sealed interface Backend
         permits NativeBackend, PureJavaCpuBackend, VulkanBackend {

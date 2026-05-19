@@ -5,7 +5,7 @@ import static lm.backend.ffm.llama_h.llama_h.*;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 
-import lm.backend.entity.GenerationConfig;
+import lm.configuration.entity.GenerationConfig;
 
 public final class Sampler implements AutoCloseable {
 

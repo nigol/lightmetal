@@ -9,10 +9,10 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
-import lm.backend.entity.GenerationConfig;
-import lm.backend.entity.Token;
 import lm.backend.ffm.llama_h.llama_context_params;
 import lm.backend.ffm.llama_h.llama_model_params;
+import lm.configuration.entity.GenerationConfig;
+import lm.configuration.entity.Token;
 import lm.sampling.control.Sampler;
 import lm.tokenization.control.Tokenizer;
 

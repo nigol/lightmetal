@@ -4,8 +4,8 @@ import java.nio.file.Path;
 import java.util.stream.Stream;
 
 import lm.backend.control.Backend;
-import lm.backend.entity.GenerationConfig;
-import lm.backend.entity.Token;
+import lm.configuration.entity.GenerationConfig;
+import lm.configuration.entity.Token;
 import lm.prompting.control.PromptTemplate;
 
 public final class LightMetal implements AutoCloseable {

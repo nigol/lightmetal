@@ -6,8 +6,8 @@ import lm.backend.control.Backend;
 import lm.backend.control.NativeBackend;
 import lm.backend.control.PureJavaCpuBackend;
 import lm.backend.control.VulkanBackend;
-import lm.backend.entity.GenerationConfig;
 import lm.configuration.control.ZCfg;
+import lm.configuration.entity.GenerationConfig;
 import lm.generation.boundary.LightMetal;
 
 void main(String... args) {
