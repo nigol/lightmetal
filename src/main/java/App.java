@@ -7,9 +7,11 @@ import lm.backend.control.NativeBackend;
 import lm.backend.control.PureJavaCpuBackend;
 import lm.backend.control.VulkanBackend;
 import lm.backend.entity.GenerationConfig;
+import lm.configuration.control.ZCfg;
 import lm.generation.boundary.LightMetal;
 
-App main(String... args) {
+void main(String... args) {
+    ZCfg.load("lightmetal");
     var parsed = parseArgs(args);
     if (parsed.help() || parsed.model() == null || parsed.prompt() == null) {
         printUsage();
@@ -56,15 +58,16 @@ void printUsage() {
 }
 
 Args parseArgs(String[] args) {
-    String model = null;
-    String prompt = null;
-    var backend = "native";
-    var maxTokens = 256;
-    var temperature = 0.7f;
-    var topP = 0.9f;
-    var topK = 40;
-    var minP = 0.05f;
-    var seed = System.nanoTime();
+    var model = ZCfg.string("model");
+    var prompt = ZCfg.string("prompt");
+    var backend = ZCfg.string("backend", "native");
+    var maxTokens = ZCfg.integer("max-tokens", 256);
+    var temperature = Float.parseFloat(ZCfg.string("temperature", "0.7"));
+    var topP = Float.parseFloat(ZCfg.string("top-p", "0.9"));
+    var topK = ZCfg.integer("top-k", 40);
+    var minP = Float.parseFloat(ZCfg.string("min-p", "0.05"));
+    var seedCfg = ZCfg.string("seed");
+    var seed = seedCfg != null ? Long.parseLong(seedCfg) : System.nanoTime();
     var help = false;
     for (var i = 0; i < args.length; i++) {
         var raw = args[i];
