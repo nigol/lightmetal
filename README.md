@@ -56,8 +56,3 @@ Selected at runtime via `-backend`; swapping is a flag, not a code change.
 
 dylib discovery falls back to `brew --prefix llama.cpp`; override with the
 `LIGHTMETAL_LIB` environment variable.
-
-## Design
-
-Rationale, backend trade-offs, the `Backend` SPI contract, FFM memory rules,
-roadmap, and open questions: see [`DESIGN.md`](DESIGN.md).
