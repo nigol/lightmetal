@@ -1,0 +1,34 @@
+package lm.backend.control;
+
+import java.nio.file.Path;
+import java.util.stream.Stream;
+
+import lm.backend.entity.GenerationConfig;
+import lm.backend.entity.Token;
+
+public sealed interface Backend
+        permits NativeBackend, PureJavaCpuBackend, VulkanBackend {
+
+    Model loadModel(Path gguf);
+
+    interface Model extends AutoCloseable {
+        Context newContext(ContextParams params);
+        int vocabSize();
+        int contextLength();
+        @Override void close();
+    }
+
+    interface Context extends AutoCloseable {
+        int[] tokenize(String text, boolean addBos);
+        String detokenize(int[] tokens);
+        Stream<Token> generate(int[] promptTokens, GenerationConfig cfg);
+        void resetKvCache();
+        @Override void close();
+    }
+
+    record ContextParams(int contextLength, int batchSize, int gpuLayers, long seed) {
+        public static ContextParams defaults() {
+            return new ContextParams(4096, 512, -1, 0);
+        }
+    }
+}
