@@ -1,4 +1,5 @@
 import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -9,15 +10,20 @@ import lm.backend.control.VulkanBackend;
 import lm.configuration.control.ZCfg;
 import lm.configuration.entity.GenerationConfig;
 import lm.generation.boundary.LightMetal;
+import lm.http.boundary.HttpAPI;
 
 void main(String... args) {
     ZCfg.load("lightmetal");
     var parsed = parseArgs(args);
-    if (parsed.help() || parsed.model() == null || parsed.prompt() == null) {
+    if (parsed.help() || parsed.model() == null || (!parsed.serve() && parsed.prompt() == null)) {
         printUsage();
         return;
     }
     var backend = backendFor(parsed.backend());
+    if (parsed.serve()) {
+        runServer(parsed, backend);
+        return;
+    }
     var cfg = new GenerationConfig(
             parsed.maxTokens(),
             parsed.temperature(),
@@ -42,6 +48,24 @@ void main(String... args) {
         var seconds = (System.nanoTime() - startNanos[0]) / 1_000_000_000.0;
         System.err.printf("%n[%d tokens, %.1f s, %.1f tok/s]%n",
                 count[0], seconds, (count[0] - 1) / seconds);
+    }
+}
+
+void runServer(Args parsed, Backend backend) {
+    var lm = LightMetal.load(Path.of(parsed.model()), backend);
+    var api = HttpAPI.start(lm, parsed.port());
+    var latch = new CountDownLatch(1);
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        System.err.println("\n[shutting down]");
+        api.close();
+        lm.close();
+        latch.countDown();
+    }));
+    System.err.printf("[lightmetal serving on http://localhost:%d/v1/messages]%n", api.port());
+    try {
+        latch.await();
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
     }
 }
 
@@ -77,6 +101,8 @@ Args parseArgs(String[] args) {
     var minP = Float.parseFloat(ZCfg.string("min-p", "0.05"));
     var seedCfg = ZCfg.string("seed");
     var seed = seedCfg != null ? Long.parseLong(seedCfg) : System.nanoTime();
+    var serve = ZCfg.bool("serve", false);
+    var port = ZCfg.integer("port", 8080);
     var help = false;
     for (var i = 0; i < args.length; i++) {
         var raw = args[i];
@@ -91,6 +117,8 @@ Args parseArgs(String[] args) {
             case TOP_K -> { topK = Integer.parseInt(valueOf(raw, args, i)); if (!raw.contains(":")) i++; }
             case MIN_P -> { minP = Float.parseFloat(valueOf(raw, args, i)); if (!raw.contains(":")) i++; }
             case SEED -> { seed = Long.parseLong(valueOf(raw, args, i)); if (!raw.contains(":")) i++; }
+            case SERVE -> serve = true;
+            case PORT -> { port = Integer.parseInt(valueOf(raw, args, i)); if (!raw.contains(":")) i++; }
             case null -> {
                 IO.println("unknown option: " + raw);
                 printUsage();
@@ -98,7 +126,7 @@ Args parseArgs(String[] args) {
             }
         }
     }
-    return new Args(model, prompt, backend, maxTokens, temperature, topP, topK, minP, seed, help);
+    return new Args(model, prompt, backend, maxTokens, temperature, topP, topK, minP, seed, serve, port, help);
 }
 
 String valueOf(String raw, String[] args, int index) {
@@ -120,19 +148,23 @@ record Args(
         int topK,
         float minP,
         long seed,
+        boolean serve,
+        int port,
         boolean help) {}
 
 enum Arg {
     HELP("-help", "show this help", true),
     MODEL("-model", "path to GGUF model file", false),
-    PROMPT("-prompt", "user prompt text", false),
+    PROMPT("-prompt", "user prompt text (omit with -serve)", false),
     BACKEND("-backend", "native | cpu | vulkan (default: native)", true),
     MAX_TOKENS("-max-tokens", "max tokens to generate (default: 256)", true),
     TEMPERATURE("-temperature", "sampling temperature (default: 0.7)", true),
     TOP_P("-top-p", "top-p nucleus sampling (default: 0.9)", true),
     TOP_K("-top-k", "top-k sampling (default: 40)", true),
     MIN_P("-min-p", "min-p sampling (default: 0.05)", true),
-    SEED("-seed", "RNG seed (default: nanoTime)", true);
+    SEED("-seed", "RNG seed (default: nanoTime)", true),
+    SERVE("-serve", "start HTTP server at /v1/messages instead of one-shot", true),
+    PORT("-port", "HTTP port (default: 8080)", true);
 
     final String option;
     final String description;

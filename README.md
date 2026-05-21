@@ -24,12 +24,13 @@ java --enable-native-access=ALL-UNNAMED -jar zbo/lightmetal.jar \
 ```
 
 Options: `-backend native|cpu|vulkan` (default `native`), `-max-tokens`,
-`-temperature`, `-top-p`, `-top-k`, `-min-p`, `-seed`, `-help`.
+`-temperature`, `-top-p`, `-top-k`, `-min-p`, `-seed`, `-serve`, `-port`,
+`-help`.
 
 With every parameter set in `~/.lightmetal/app.properties`:
 
 ```properties
-model=/Users/abien/Downloads/Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf
+model=/Users/duke/Downloads/Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf
 backend=native
 max-tokens=256
 temperature=0.7
@@ -46,17 +47,45 @@ java --enable-native-access=ALL-UNNAMED -jar zbo/lightmetal.jar \
      -prompt "What is Java?"
 ```
 
+## HTTP API
+
+`-serve` starts an Anthropic-compatible `POST /v1/messages` endpoint instead of
+running a one-shot generation. The model loads once; requests are serialized
+because llama.cpp contexts are not thread-safe.
+
+```
+java --enable-native-access=ALL-UNNAMED -jar zbo/lightmetal.jar \
+     -model ~/models/Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf \
+     -serve -port 8080
+```
+
+```
+curl -s http://localhost:8080/v1/messages \
+  -H 'content-type: application/json' \
+  -d '{"max_tokens":64,"system":"be terse","messages":[{"role":"user","content":"say hi"}],"temperature":0.7}'
+```
+
+Request fields honored: `system`, `messages` (`content` as string or
+`[{"type":"text","text":"…"}]` blocks), `max_tokens`, `temperature`. `tools`,
+`thinking`, `output_config`, and `model` are accepted and ignored — the loaded
+GGUF wins. Response shape matches Anthropic's `{id, content[…], stop_reason,
+usage}` so existing clients (e.g. [zsmith](https://github.com/AdamBien/zsmith))
+only need a base URL switch.
+
 ## Architecture
 
 ```mermaid
 flowchart TD
     CLI["lightmetal CLI<br/>App.java (Java 25)"]
+    HTTP["lm.http.boundary.HttpAPI<br/>POST /v1/messages"]
     LM["lm.generation.boundary.LightMetal<br/>load · generate : Stream&lt;Token&gt;"]
     SPI["lm.backend.control.Backend<br/>sealed SPI"]
     Native["NativeBackend<br/>FFM → libllama.dylib"]
     Cpu["PureJavaCpuBackend<br/>Vector API · planned"]
     Vulkan["VulkanBackend<br/>MoltenVK + SPIR-V · planned"]
-    CLI --> LM --> SPI
+    CLI --> LM
+    HTTP --> LM
+    LM --> SPI
     SPI --> Native
     SPI --> Cpu
     SPI --> Vulkan
