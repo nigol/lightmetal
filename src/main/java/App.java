@@ -7,6 +7,7 @@ import lm.configuration.control.ZCfg;
 import lm.configuration.entity.GenerationConfig;
 import lm.generation.boundary.LightMetal;
 import lm.http.boundary.HttpAPI;
+import lm.logging.control.Log;
 
 void main(String... args) {
     ZCfg.load("lightmetal");
@@ -41,8 +42,8 @@ void main(String... args) {
     IO.println("");
     if (count[0] > 1) {
         var seconds = (System.nanoTime() - startNanos[0]) / 1_000_000_000.0;
-        System.err.printf("%n[%d tokens, %.1f s, %.1f tok/s]%n",
-                count[0], seconds, (count[0] - 1) / seconds);
+        Log.system("[%d tokens, %.1f s, %.1f tok/s]".formatted(
+                count[0], seconds, (count[0] - 1) / seconds));
     }
 }
 
@@ -51,12 +52,12 @@ void runServer(Args parsed) {
     var api = HttpAPI.start(lm, parsed.port());
     var latch = new CountDownLatch(1);
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-        System.err.println("\n[shutting down]");
+        Log.system("[shutting down]");
         api.close();
         lm.close();
         latch.countDown();
     }));
-    System.err.printf("[lightmetal serving on http://localhost:%d/v1/messages]%n", api.port());
+    Log.success("[lightmetal serving on http://localhost:%d/v1/messages]".formatted(api.port()));
     try {
         latch.await();
     } catch (InterruptedException e) {

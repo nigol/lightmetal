@@ -17,6 +17,7 @@ import lm.generation.boundary.LightMetal;
 import lm.http.entity.MessagesRequest;
 import lm.http.entity.MessagesRequest.AssistantText;
 import lm.http.entity.MessagesRequest.UserText;
+import lm.logging.control.Log;
 import lm.prompting.control.PromptTemplate;
 import lm.tools.control.ToolCallParser;
 
@@ -52,6 +53,7 @@ public final class MessagesHandler implements HttpHandler {
             try {
                 writeOk(exchange, generate(req));
             } catch (RuntimeException e) {
+                Log.error("request failed", e);
                 writeError(exchange, 500, "api_error", e.getMessage());
             }
         }
@@ -60,7 +62,7 @@ public final class MessagesHandler implements HttpHandler {
     JSONObject generate(MessagesRequest req) {
         var prompt = buildPrompt(req);
         var cfg = baseConfig(req);
-        System.err.println("[prompt template=" + template + "]\n" + prompt + "\n[/prompt]");
+        Log.debug("[prompt template=" + template + "]\n" + prompt + "\n[/prompt]");
 
         var raw = new StringBuilder();
         var emitted = new long[1];

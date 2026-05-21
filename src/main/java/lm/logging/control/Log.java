@@ -1,0 +1,62 @@
+package lm.logging.control;
+
+import java.io.PrintStream;
+
+public enum Log {
+
+    ERROR(Color.RED, System.err),
+    SYSTEM(Color.BLUE, System.out),
+    DEBUG(Color.VIOLET, System.out),
+    SUCCESS(Color.MAGENTA, System.out);
+
+    private final PrintStream out;
+    private final String value;
+    private static final String RESET = "[0m";
+
+    enum Color {
+        RED("[38;2;220;50;47m"),
+        MAGENTA("[38;2;211;54;130m"),
+        VIOLET("[38;2;108;113;196m"),
+        BLUE("[38;2;38;139;210m");
+
+        final String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    Log(Color color, PrintStream out) {
+        this.value = (color.code + "%s" + RESET);
+        this.out = out;
+    }
+
+    String formatted(String raw) {
+        return this.value.formatted(raw);
+    }
+
+    void out(String message) {
+        this.out.println(formatted(message));
+    }
+
+    public static void error(String message) {
+        Log.ERROR.out(message);
+    }
+
+    public static void error(String message, Exception e) {
+        Log.ERROR.out(message + ": " + e.getMessage());
+        e.printStackTrace(System.err);
+    }
+
+    public static void system(String message) {
+        Log.SYSTEM.out(message);
+    }
+
+    public static void debug(String message) {
+        Log.DEBUG.out(message);
+    }
+
+    public static void success(String message) {
+        Log.SUCCESS.out(message);
+    }
+}

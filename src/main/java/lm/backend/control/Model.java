@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import lm.backend.ffm.llama_h.llama_model_params;
 import lm.configuration.entity.ContextParams;
+import lm.logging.control.Log;
 
 public final class Model implements AutoCloseable {
 
@@ -53,13 +54,11 @@ public final class Model implements AutoCloseable {
     private void logChatTemplate() {
         var tmplPtr = llama_model_chat_template(handle, MemorySegment.NULL);
         if (MemorySegment.NULL.equals(tmplPtr)) {
-            System.err.println("[chat_template] (none stored in GGUF)");
+            Log.debug("[chat_template] (none stored in GGUF)");
             return;
         }
         var tmpl = tmplPtr.reinterpret(Long.MAX_VALUE).getString(0);
-        System.err.println("[chat_template]");
-        System.err.println(tmpl);
-        System.err.println("[/chat_template]");
+        Log.debug("[chat_template]\n" + tmpl + "\n[/chat_template]");
     }
 
     private static void ensureBackendInit() {

@@ -11,6 +11,7 @@ import lm.backend.ffm.llama_h.llama_context_params;
 import lm.configuration.entity.ContextParams;
 import lm.configuration.entity.GenerationConfig;
 import lm.configuration.entity.Token;
+import lm.logging.control.Log;
 import lm.sampling.control.Sampler;
 import lm.tokenization.control.Tokenizer;
 
@@ -36,7 +37,7 @@ public final class Context implements AutoCloseable {
             throw new IllegalStateException("failed to create context");
         }
         this.tokenizer = new Tokenizer(model.vocab);
-        System.err.println("[ctx] n_ctx=" + llama_n_ctx(ctx) + " n_ubatch=" + cfg.batchSize());
+        Log.system("[ctx] n_ctx=" + llama_n_ctx(ctx) + " n_ubatch=" + cfg.batchSize());
     }
 
     public int[] tokenize(String text, boolean addBos) {
