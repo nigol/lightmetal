@@ -65,6 +65,7 @@ public final class MessagesHandler implements HttpHandler {
         var raw = new StringBuilder();
         var emitted = new long[1];
         synchronized (lm) {
+            lm.reset();
             try (var stream = lm.complete(prompt, cfg)) {
                 stream.forEach(t -> {
                     raw.append(t.text());

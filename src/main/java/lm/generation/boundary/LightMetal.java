@@ -35,6 +35,10 @@ public final class LightMetal implements AutoCloseable {
         return ctx.generate(promptTokens, cfg);
     }
 
+    public void reset() {
+        ctx.resetKvCache();
+    }
+
     @Override
     public void close() {
         ctx.close();
