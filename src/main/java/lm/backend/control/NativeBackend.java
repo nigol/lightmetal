@@ -96,13 +96,16 @@ public final class NativeBackend implements Backend {
         private final NativeModel parent;
         private final MemorySegment ctx;
         private final Tokenizer tokenizer;
+        private final int batchSize;
 
         NativeContext(NativeModel parent, ContextParams cfg) {
             this.parent = parent;
+            this.batchSize = cfg.batchSize();
             try (var arena = Arena.ofConfined()) {
                 var params = llama_context_default_params(arena);
                 llama_context_params.n_ctx(params, cfg.contextLength());
                 llama_context_params.n_batch(params, cfg.batchSize());
+                llama_context_params.n_ubatch(params, cfg.batchSize());
                 this.ctx = llama_new_context_with_model(parent.model, params);
             }
             if (MemorySegment.NULL.equals(ctx)) {
@@ -128,11 +131,15 @@ public final class NativeBackend implements Backend {
         }
 
         private void decodePrompt(int[] promptTokens) {
-            try (var arena = Arena.ofConfined()) {
-                var tokSeg = arena.allocateFrom(ValueLayout.JAVA_INT, promptTokens);
-                var batch = llama_batch_get_one(arena, tokSeg, promptTokens.length);
-                if (llama_decode(ctx, batch) != 0) {
-                    throw new IllegalStateException("prompt decode failed");
+            for (var offset = 0; offset < promptTokens.length; offset += batchSize) {
+                var len = Math.min(batchSize, promptTokens.length - offset);
+                try (var arena = Arena.ofConfined()) {
+                    var tokSeg = arena.allocate(ValueLayout.JAVA_INT, len);
+                    MemorySegment.copy(promptTokens, offset, tokSeg, ValueLayout.JAVA_INT, 0, len);
+                    var batch = llama_batch_get_one(arena, tokSeg, len);
+                    if (llama_decode(ctx, batch) != 0) {
+                        throw new IllegalStateException("prompt decode failed at offset " + offset);
+                    }
                 }
             }
         }

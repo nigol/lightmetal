@@ -28,7 +28,7 @@ public sealed interface Backend
 
     record ContextParams(int contextLength, int batchSize, int gpuLayers, long seed) {
         public static ContextParams defaults() {
-            return new ContextParams(4096, 512, -1, 0);
+            return new ContextParams(4096, 4096, -1, 0);
         }
     }
 }
