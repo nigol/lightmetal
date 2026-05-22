@@ -18,6 +18,7 @@ import lm.http.entity.AnthropicMessagesRequest;
 import lm.http.entity.AnthropicMessagesRequest.AssistantText;
 import lm.http.entity.AnthropicMessagesRequest.UserText;
 import lm.logging.control.Log;
+import lm.prompting.control.ChatTemplate;
 import lm.prompting.control.PromptTemplate;
 import lm.tools.control.ToolCallParser;
 
@@ -25,10 +26,12 @@ public final class MessagesHandler implements HttpHandler {
 
     private final LightMetal lm;
     private final String template;
+    private final ChatTemplate chatTemplate;
 
     public MessagesHandler(LightMetal lm) {
         this.lm = lm;
         this.template = ZCfg.string("template", "mistral4");
+        this.chatTemplate = ChatTemplate.of(this.template);
     }
 
     @Override
@@ -88,7 +91,7 @@ public final class MessagesHandler implements HttpHandler {
             }
         }
 
-        var parsed = ToolCallParser.parse(raw.toString());
+        var parsed = chatTemplate.parse(raw.toString());
         var content = new JSONArray();
         String stopReason;
         if (parsed instanceof ToolCallParser.Calls calls) {
@@ -127,7 +130,7 @@ public final class MessagesHandler implements HttpHandler {
     String buildPrompt(AnthropicMessagesRequest req) {
         return switch (template) {
             case "v0.3", "v3", "basic" -> PromptTemplate.mistralChat(req.system(), flattenForBasic(req));
-            default -> PromptTemplate.mistral4(req.system(), req.tools(), req.turns());
+            default -> chatTemplate.render(req.system(), req.tools(), req.turns());
         };
     }
 
