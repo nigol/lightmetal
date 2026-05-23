@@ -7,6 +7,10 @@ import java.util.OptionalLong;
 
 public record GGUFMetadata(int version, long tensorCount, Map<String, Object> kvs) {
 
+    public static GGUFMetadata empty() {
+        return new GGUFMetadata(0, 0L, Map.of());
+    }
+
     public Optional<Object> get(String key) {
         return Optional.ofNullable(kvs.get(key));
     }

@@ -30,8 +30,10 @@ public final class MessagesHandler implements HttpHandler {
 
     public MessagesHandler(LightMetal lm) {
         this.lm = lm;
-        this.template = ZCfg.string("template", "mistral4");
+        var defaultTemplate = lm.metadata().detectTemplate().orElse("mistral4");
+        this.template = ZCfg.string("template", defaultTemplate);
         this.chatTemplate = ChatTemplate.of(this.template);
+        Log.system("[template=" + this.template + "]");
     }
 
     @Override

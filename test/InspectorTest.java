@@ -7,13 +7,29 @@ import java.nio.file.Path;
 import lm.configuration.control.ZCfg;
 import lm.inspection.boundary.Inspector;
 import lm.inspection.control.GGUFReader;
+import lm.inspection.entity.GGUFMetadata;
 
 void main() {
+    testEmptyMetadataDegradesGracefully();
     testParsesCraftedV3Header();
     testRejectsBadMagic();
     testRejectsUnsupportedVersion();
     testRealModel();
     IO.println("[ok] Inspector tests");
+}
+
+void testEmptyMetadataDegradesGracefully() {
+    var empty = GGUFMetadata.empty();
+    if (!empty.kvs().isEmpty())
+        throw new AssertionError("empty() should have no kv pairs");
+    if (empty.detectTemplate().isPresent())
+        throw new AssertionError("empty() should not detect a template");
+    if (empty.contextLength().isPresent())
+        throw new AssertionError("empty() should not have a context_length");
+    if (empty.addBosToken().isPresent())
+        throw new AssertionError("empty() should not have add_bos_token");
+    if (empty.architecture().isPresent())
+        throw new AssertionError("empty() should not have an architecture");
 }
 
 void testParsesCraftedV3Header() {
