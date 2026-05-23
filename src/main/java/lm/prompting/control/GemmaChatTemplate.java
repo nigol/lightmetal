@@ -1,20 +1,114 @@
 package lm.prompting.control;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import lm.http.entity.AnthropicMessagesRequest.Turn;
 import lm.tools.control.ToolCallParser;
 import lm.tools.entity.Tool;
+import lm.tools.entity.ToolCall;
 
 public final class GemmaChatTemplate implements ChatTemplate {
 
+    private static final String TOOL_CALL_OPEN = "<|tool_call>";
+    private static final String TOOL_CALL_CLOSE = "<tool_call|>";
+    private static final String CALL_PREFIX = "call:";
+
     @Override
     public String render(String system, List<Tool> tools, List<Turn> turns) {
-        throw new UnsupportedOperationException("gemma4 template not implemented yet");
+        return PromptTemplate.gemma4(system, tools, turns);
     }
 
     @Override
     public ToolCallParser.Parsed parse(String generated) {
-        return new ToolCallParser.Text(generated == null ? "" : generated);
+        var text = PromptTemplate.gemmaStripThinking(generated == null ? "" : generated);
+        var firstOpen = text.indexOf(TOOL_CALL_OPEN);
+        if (firstOpen < 0) {
+            return new ToolCallParser.Text(text);
+        }
+        var leading = text.substring(0, firstOpen).strip();
+        var calls = extractCalls(text, firstOpen);
+        return calls.isEmpty() ? new ToolCallParser.Text(text) : new ToolCallParser.Calls(leading, calls);
+    }
+
+    private static List<ToolCall> extractCalls(String text, int from) {
+        var out = new ArrayList<ToolCall>();
+        var cursor = from;
+        while (true) {
+            var open = text.indexOf(TOOL_CALL_OPEN, cursor);
+            if (open < 0) break;
+            var bodyStart = open + TOOL_CALL_OPEN.length();
+            var close = text.indexOf(TOOL_CALL_CLOSE, bodyStart);
+            if (close < 0) break;
+            var body = text.substring(bodyStart, close);
+            var call = parseCall(body);
+            if (call != null) out.add(call);
+            cursor = close + TOOL_CALL_CLOSE.length();
+        }
+        return out;
+    }
+
+    private static ToolCall parseCall(String body) {
+        if (!body.startsWith(CALL_PREFIX)) return null;
+        var afterPrefix = body.substring(CALL_PREFIX.length());
+        var brace = afterPrefix.indexOf('{');
+        if (brace < 0) return null;
+        var name = afterPrefix.substring(0, brace).strip();
+        if (name.isEmpty()) return null;
+        var args = parseArgs(afterPrefix.substring(brace));
+        return ToolCall.of(name, args);
+    }
+
+    static JSONObject parseArgs(String gemmaObject) {
+        var jsonish = gemmaObject.replace(PromptTemplate.GEMMA_QUOTE, "\"");
+        var quoted = quoteUnquotedKeys(jsonish);
+        try {
+            return new JSONObject(new JSONTokener(quoted));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return new JSONObject();
+        }
+    }
+
+    static String quoteUnquotedKeys(String s) {
+        var sb = new StringBuilder(s.length() + 16);
+        var inString = false;
+        var escape = false;
+        for (var i = 0; i < s.length(); i++) {
+            var c = s.charAt(i);
+            if (escape) { sb.append(c); escape = false; continue; }
+            if (c == '\\') { sb.append(c); escape = true; continue; }
+            if (c == '"') { sb.append(c); inString = !inString; continue; }
+            if (inString) { sb.append(c); continue; }
+            if ((c == '{' || c == ',') && isStartOfUnquotedKey(s, i + 1)) {
+                sb.append(c);
+                var end = i + 1;
+                while (end < s.length() && isIdentChar(s.charAt(end))) end++;
+                sb.append('"').append(s, i + 1, end).append('"');
+                i = end - 1;
+                continue;
+            }
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
+    private static boolean isStartOfUnquotedKey(String s, int idx) {
+        if (idx >= s.length()) return false;
+        var c = s.charAt(idx);
+        if (!isIdentStart(c)) return false;
+        var j = idx + 1;
+        while (j < s.length() && isIdentChar(s.charAt(j))) j++;
+        return j < s.length() && s.charAt(j) == ':';
+    }
+
+    private static boolean isIdentStart(char c) {
+        return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    }
+
+    private static boolean isIdentChar(char c) {
+        return isIdentStart(c) || (c >= '0' && c <= '9');
     }
 }
