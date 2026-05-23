@@ -29,6 +29,9 @@ void main() {
     testToolCallAndResponseMerging(tpl);
     testParserRecoversToolCalls(tpl);
     testParserStripsThinking(tpl);
+    testParserDropsNullLeadingSentinel(tpl);
+    testParserDropsNullOnlyOutput(tpl);
+    testRendererSuppressesNullAssistantText(tpl);
 
     IO.println("[ok] gemma4 template render + parse");
 }
@@ -117,4 +120,37 @@ void testParserStripsThinking(ChatTemplate tpl) {
         throw new AssertionError("expected Text, got " + parsed.getClass());
     if (!"The answer is 42.".equals(t.text()))
         throw new AssertionError("thinking not stripped, got: '" + t.text() + "'");
+}
+
+void testParserDropsNullLeadingSentinel(ChatTemplate tpl) {
+    var raw = "null<|tool_call>call:get_weather{location:<|\"|>Paris<|\"|>}<tool_call|>";
+    var parsed = tpl.parse(raw);
+    if (!(parsed instanceof ToolCallParser.Calls c))
+        throw new AssertionError("expected Calls, got " + parsed.getClass());
+    if (!c.leadingText().isEmpty())
+        throw new AssertionError("expected empty leading (null sentinel stripped), got: '" + c.leadingText() + "'");
+    if (c.calls().size() != 1 || !"get_weather".equals(c.calls().getFirst().name()))
+        throw new AssertionError("tool call lost during null strip");
+}
+
+void testParserDropsNullOnlyOutput(ChatTemplate tpl) {
+    var parsed = tpl.parse("null");
+    if (!(parsed instanceof ToolCallParser.Text t))
+        throw new AssertionError("expected Text, got " + parsed.getClass());
+    if (!t.text().isEmpty())
+        throw new AssertionError("expected empty text, got: '" + t.text() + "'");
+}
+
+void testRendererSuppressesNullAssistantText(ChatTemplate tpl) {
+    var call = new ToolCall("toolu_1", "delegate_to_link_researcher",
+            new JSONObject().put("task", "find link"));
+    var turns = List.<Turn>of(
+            new UserText("go"),
+            new AssistantToolCalls("null", List.of(call)),
+            new UserToolResults(List.of(new ToolResult("toolu_1", "ok"))));
+    var out = tpl.render("", List.of(), turns);
+    if (out.contains("<tool_response|>null"))
+        throw new AssertionError("'null' sentinel leaked into prompt:\n" + out);
+    if (out.contains("null<turn|>"))
+        throw new AssertionError("'null' before <turn|> leaked:\n" + out);
 }

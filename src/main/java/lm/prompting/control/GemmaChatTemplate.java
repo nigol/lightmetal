@@ -27,11 +27,18 @@ public final class GemmaChatTemplate implements ChatTemplate {
         var text = PromptTemplate.gemmaStripThinking(generated == null ? "" : generated);
         var firstOpen = text.indexOf(TOOL_CALL_OPEN);
         if (firstOpen < 0) {
-            return new ToolCallParser.Text(text);
+            return new ToolCallParser.Text(stripNullSentinel(text));
         }
-        var leading = text.substring(0, firstOpen).strip();
+        var leading = stripNullSentinel(text.substring(0, firstOpen));
         var calls = extractCalls(text, firstOpen);
-        return calls.isEmpty() ? new ToolCallParser.Text(text) : new ToolCallParser.Calls(leading, calls);
+        return calls.isEmpty()
+                ? new ToolCallParser.Text(stripNullSentinel(text))
+                : new ToolCallParser.Calls(leading, calls);
+    }
+
+    static String stripNullSentinel(String s) {
+        var stripped = s.strip();
+        return "null".equals(stripped) ? "" : stripped;
     }
 
     private static List<ToolCall> extractCalls(String text, int from) {

@@ -199,14 +199,14 @@ public interface PromptTemplate {
                     }
                     i = k - 1;
 
-                    var text = gemmaStripThinking(a.text());
+                    var text = gemmaAssistantContent(a.text());
                     if (!text.isBlank()) {
                         sb.append(text);
                         hasContent = true;
                     }
                 }
                 case AssistantText a -> {
-                    var text = gemmaStripThinking(a.text());
+                    var text = gemmaAssistantContent(a.text());
                     if (!text.isBlank()) {
                         sb.append(text);
                         hasContent = true;
@@ -252,6 +252,11 @@ public interface PromptTemplate {
             sb.append(open >= 0 ? part.substring(0, open) : part);
         }
         return sb.toString().strip();
+    }
+
+    static String gemmaAssistantContent(String text) {
+        var stripped = gemmaStripThinking(text);
+        return "null".equals(stripped) ? "" : stripped;
     }
 
     private static String toolNameForCallId(List<ToolCall> calls, String callId) {
