@@ -1,31 +1,16 @@
 package lm.inspection.control;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
+import module java.base;
 import lm.inspection.entity.GGUFMetadata;
 
-public final class GGUFReader {
+public interface GGUFReader {
 
-    private static final int MAGIC = 0x46554747; // "GGUF" little-endian
-    private static final long MAX_HEADER_MAP = 256L * 1024 * 1024;
+    int MAGIC = 'G' | ('G' << 8) | ('U' << 16) | ('F' << 24);
+    long MAX_HEADER_MAP = 256L * 1024 * 1024;
+    int MIN_VERSION = 2;
+    int MAX_VERSION = 3;
 
-    private static final int U8 = 0, I8 = 1, U16 = 2, I16 = 3;
-    private static final int U32 = 4, I32 = 5, F32 = 6, BOOL = 7;
-    private static final int STRING = 8, ARRAY = 9;
-    private static final int U64 = 10, I64 = 11, F64 = 12;
-
-    private GGUFReader() {}
-
-    public static GGUFMetadata read(Path file) {
+    static GGUFMetadata read(Path file) {
         try (var ch = FileChannel.open(file, StandardOpenOption.READ)) {
             var size = Math.min(ch.size(), MAX_HEADER_MAP);
             var buf = ch.map(FileChannel.MapMode.READ_ONLY, 0, size).order(ByteOrder.LITTLE_ENDIAN);
@@ -35,65 +20,72 @@ public final class GGUFReader {
         }
     }
 
-    public static GGUFMetadata parse(ByteBuffer buf) {
+    static GGUFMetadata parse(ByteBuffer buf) {
         var magic = buf.getInt();
-        if (magic != MAGIC) {
+        if (magic != MAGIC)
             throw new IllegalArgumentException("not a GGUF file (magic=0x" + Integer.toHexString(magic) + ")");
-        }
         var version = buf.getInt();
-        if (version < 2 || version > 3) {
+        if (version < MIN_VERSION || version > MAX_VERSION)
             throw new IllegalArgumentException("unsupported GGUF version: " + version + " (only v2 and v3 supported)");
-        }
         var tensorCount = buf.getLong();
         var kvCount = buf.getLong();
-
         var kvs = new LinkedHashMap<String, Object>();
         for (var i = 0L; i < kvCount; i++) {
             var key = readString(buf);
-            var type = buf.getInt();
-            kvs.put(key, readValue(buf, type));
+            kvs.put(key, Type.from(buf.getInt()).read(buf));
         }
         return new GGUFMetadata(version, tensorCount, Map.copyOf(kvs));
     }
 
-    private static String readString(ByteBuffer buf) {
-        var len = buf.getLong();
-        if (len < 0 || len > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("invalid string length: " + len);
-        }
-        var bytes = new byte[(int) len];
+    static String readString(ByteBuffer buf) {
+        var bytes = new byte[boundedInt(buf.getLong(), "string")];
         buf.get(bytes);
         return new String(bytes, StandardCharsets.UTF_8);
     }
 
-    private static Object readValue(ByteBuffer buf, int type) {
-        return switch (type) {
-            case U8 -> Byte.toUnsignedInt(buf.get());
-            case I8 -> (int) buf.get();
-            case U16 -> Short.toUnsignedInt(buf.getShort());
-            case I16 -> (int) buf.getShort();
-            case U32 -> Integer.toUnsignedLong(buf.getInt());
-            case I32 -> buf.getInt();
-            case F32 -> buf.getFloat();
-            case BOOL -> buf.get() != 0;
-            case STRING -> readString(buf);
-            case U64, I64 -> buf.getLong();
-            case F64 -> buf.getDouble();
-            case ARRAY -> readArray(buf);
-            default -> throw new IllegalArgumentException("unknown GGUF value type: " + type);
-        };
+    static Object[] readArray(ByteBuffer buf) {
+        var elemType = Type.from(buf.getInt());
+        var out = new Object[boundedInt(buf.getLong(), "array")];
+        for (var i = 0; i < out.length; i++) out[i] = elemType.read(buf);
+        return out;
     }
 
-    private static Object[] readArray(ByteBuffer buf) {
-        var elemType = buf.getInt();
-        var length = buf.getLong();
-        if (length < 0 || length > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("invalid array length: " + length);
+    private static int boundedInt(long len, String kind) {
+        if (len < 0 || len > Integer.MAX_VALUE)
+            throw new IllegalArgumentException("invalid " + kind + " length: " + len);
+        return (int) len;
+    }
+
+    enum Type {
+        U8(b -> Byte.toUnsignedInt(b.get())),
+        I8(b -> (int) b.get()),
+        U16(b -> Short.toUnsignedInt(b.getShort())),
+        I16(b -> (int) b.getShort()),
+        U32(b -> Integer.toUnsignedLong(b.getInt())),
+        I32(ByteBuffer::getInt),
+        F32(ByteBuffer::getFloat),
+        BOOL(b -> b.get() != 0),
+        STRING(GGUFReader::readString),
+        ARRAY(GGUFReader::readArray),
+        U64(ByteBuffer::getLong),
+        I64(ByteBuffer::getLong),
+        F64(ByteBuffer::getDouble);
+
+        final Function<ByteBuffer, Object> reader;
+
+        Type(Function<ByteBuffer, Object> reader) {
+            this.reader = reader;
         }
-        var out = new Object[(int) length];
-        for (var i = 0; i < out.length; i++) {
-            out[i] = readValue(buf, elemType);
+
+        static Type from(int tag) {
+            var all = values();
+            if (tag < 0 || tag >= all.length)
+                throw new IllegalArgumentException("unknown GGUF value type: " + tag);
+            return all[tag];
         }
-        return out;
+
+        Object read(ByteBuffer buf) {
+            return reader.apply(buf);
+        }
     }
 }
