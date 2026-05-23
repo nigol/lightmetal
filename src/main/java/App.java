@@ -57,7 +57,8 @@ void runServer(Args parsed) {
         lm.close();
         latch.countDown();
     }));
-    Log.success("[lightmetal serving on http://localhost:%d/v1/messages]".formatted(api.port()));
+    Log.success("[lightmetal serving %s on http://localhost:%d/v1/messages]"
+            .formatted(lm.metadata().name().orElse("model"), api.port()));
     try {
         latch.await();
     } catch (InterruptedException e) {

@@ -142,7 +142,7 @@ public final class ChatCompletionsHandler implements HttpHandler {
                 .put("id", "chatcmpl-" + System.nanoTime())
                 .put("object", "chat.completion")
                 .put("created", System.currentTimeMillis() / 1000L)
-                .put("model", "lightmetal")
+                .put("model", lm.metadata().name().orElse("lightmetal"))
                 .put("choices", new JSONArray().put(choice))
                 .put("usage", new JSONObject()
                         .put("prompt_tokens", promptTokens)

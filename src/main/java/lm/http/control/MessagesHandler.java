@@ -118,7 +118,7 @@ public final class MessagesHandler implements HttpHandler {
                 .put("id", "msg_" + System.nanoTime())
                 .put("type", "message")
                 .put("role", "assistant")
-                .put("model", "lightmetal")
+                .put("model", lm.metadata().name().orElse("lightmetal"))
                 .put("content", content)
                 .put("stop_reason", stopReason)
                 .put("stop_sequence", JSONObject.NULL)

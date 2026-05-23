@@ -9,9 +9,16 @@ import org.json.JSONObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import lm.generation.boundary.LightMetal;
 import lm.logging.control.Log;
 
 public final class ModelsHandler implements HttpHandler {
+
+    private final LightMetal lm;
+
+    public ModelsHandler(LightMetal lm) {
+        this.lm = lm;
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -29,7 +36,7 @@ public final class ModelsHandler implements HttpHandler {
             var body = new JSONObject()
                     .put("object", "list")
                     .put("data", new JSONArray().put(new JSONObject()
-                            .put("id", "lightmetal")
+                            .put("id", lm.metadata().name().orElse("lightmetal"))
                             .put("object", "model")
                             .put("created", 0)
                             .put("owned_by", "local")))
