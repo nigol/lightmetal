@@ -1,15 +1,12 @@
 package lm.inspection.boundary;
 
-import java.nio.file.Path;
-
+import module java.base;
 import lm.inspection.control.GGUFReader;
 import lm.inspection.entity.GGUFMetadata;
 
-public final class Inspector {
+public interface Inspector {
 
-    private Inspector() {}
-
-    public static GGUFMetadata inspect(Path gguf) {
+    static GGUFMetadata inspect(Path gguf) {
         return GGUFReader.read(gguf);
     }
 }

@@ -18,8 +18,8 @@ Medium 3.5.
 ```
 zb build
 java --enable-native-access=ALL-UNNAMED -jar zbo/lightmetal.jar \
-     -model ~/models/Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf \
-     -prompt "Refactor this Java method:"
+     -model ~/models/gemma-4-31B-it-UD-Q8_K_XL.gguf \
+     -prompt "What is the relation between Sun Microsystems and Java"
 ```
 
 Options: `-max-tokens`, `-temperature`, `-top-p`, `-top-k`, `-min-p`, `-seed`,
@@ -106,8 +106,8 @@ with the `LIGHTMETAL_LIB` environment variable.
 
 ### Minimal configuration
 
-Only `model` is mandatory. Everything else has a default, and `template` plus
-`context.length` are auto-derived from the GGUF when not set explicitly.
+Only `model` is mandatory. Everything else has a default, and `template` is
+auto-derived from the GGUF when not set explicitly.
 
 ```properties
 model=/path/to/your.gguf
@@ -116,7 +116,7 @@ model=/path/to/your.gguf
 Properties are looked up in this order (later wins):
 
 1. Hardcoded defaults
-2. GGUF metadata (for `template` and `context.length`)
+2. GGUF metadata (currently for `template` and `tokenizer.ggml.add_bos_token`)
 3. `~/.lightmetal/app.properties` (global)
 4. `./app.properties` (project-local)
 5. `-Dproperty=value` JVM system properties
@@ -161,7 +161,7 @@ All optional — defaults shown.
 
 | Property | Default | Effect |
 |---|---|---|
-| `context.length` | `<arch>.context_length` from GGUF (e.g. 262144 for gemma-4), falls back to `32768` | KV cache size in tokens. Memory scales linearly. |
+| `context.length` | `32768` | KV cache size in tokens. Memory scales linearly. The GGUF's full context (e.g. 262144 for gemma-4) is intentionally NOT auto-applied — that's what the model supports, not what fits your RAM. Raise it explicitly when you need it. |
 | `context.batch.size` | `2048` | `n_ubatch` — physical decode chunk size. |
 | `context.gpu.layers` | `-1` | Layers offloaded to Metal; `-1` = all. |
 | `context.seed` | `0` | Context seed. |
