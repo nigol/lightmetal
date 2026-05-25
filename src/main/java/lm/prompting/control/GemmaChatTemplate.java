@@ -16,6 +16,12 @@ public final class GemmaChatTemplate implements ChatTemplate {
     private static final String TOOL_CALL_OPEN = "<|tool_call>";
     private static final String TOOL_CALL_CLOSE = "<tool_call|>";
     private static final String CALL_PREFIX = "call:";
+    // Generation must halt at <tool_call|> so the runtime can dispatch the call before
+    // the model invents a fake <|tool_response> and keeps going. <turn|> is the assistant
+    // turn terminator — kept here as a safety net because this gemma-4 GGUF does not map
+    // it to an EOG token in the vocab (verified against gemma-4-E2B-it-UD-Q8_K_XL.gguf).
+    private static final List<String> STOPS =
+            List.of(PromptTemplate.GEMMA_TOOL_CALL_CLOSE, PromptTemplate.GEMMA_TURN_CLOSE);
 
     @Override
     public String render(String system, List<Tool> tools, List<Turn> turns) {
@@ -23,8 +29,13 @@ public final class GemmaChatTemplate implements ChatTemplate {
     }
 
     @Override
+    public List<String> stopSequences() {
+        return STOPS;
+    }
+
+    @Override
     public ToolCallParser.Parsed parse(String generated) {
-        var text = PromptTemplate.gemmaStripThinking(generated == null ? "" : generated);
+        var text = stripTrailingTurn(PromptTemplate.gemmaStripThinking(generated == null ? "" : generated));
         var firstOpen = text.indexOf(TOOL_CALL_OPEN);
         if (firstOpen < 0) {
             return new ToolCallParser.Text(stripNullSentinel(text));
@@ -39,6 +50,14 @@ public final class GemmaChatTemplate implements ChatTemplate {
     static String stripNullSentinel(String s) {
         var stripped = s.strip();
         return "null".equals(stripped) ? "" : stripped;
+    }
+
+    static String stripTrailingTurn(String s) {
+        var t = s;
+        while (t.endsWith(PromptTemplate.GEMMA_TURN_CLOSE)) {
+            t = t.substring(0, t.length() - PromptTemplate.GEMMA_TURN_CLOSE.length()).stripTrailing();
+        }
+        return t;
     }
 
     private static List<ToolCall> extractCalls(String text, int from) {

@@ -93,7 +93,7 @@ public final class ChatCompletionsHandler implements HttpHandler {
     JSONObject generate(OpenAIChatRequest req) {
         var msgReq = req.toAnthropicMessagesRequest();
         var prompt = buildPrompt(msgReq);
-        var cfg = baseConfig(req);
+        var cfg = baseConfig(req).withStopSequences(chatTemplate.stopSequences());
         Log.debug("[prompt template=" + template + "]\n" + prompt + "\n[/prompt]");
 
         var raw = new StringBuilder();

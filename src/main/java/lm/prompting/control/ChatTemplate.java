@@ -12,6 +12,10 @@ public sealed interface ChatTemplate permits Mistral4ChatTemplate, GemmaChatTemp
 
     ToolCallParser.Parsed parse(String generated);
 
+    default List<String> stopSequences() {
+        return List.of();
+    }
+
     static ChatTemplate of(String name) {
         return switch (name) {
             case "gemma4" -> new GemmaChatTemplate();

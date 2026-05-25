@@ -5,6 +5,7 @@ import static lm.backend.ffm.llama_h.llama_h.*;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.util.List;
 import java.util.stream.Stream;
 
 import lm.backend.ffm.llama_h.llama_context_params;
@@ -77,7 +78,7 @@ public final class Context implements AutoCloseable {
 
     private Stream<Token> tokenStream(GenerationConfig cfg) {
         var sampler = Sampler.create(cfg, model.vocab);
-        var state = new GenState(cfg.maxTokens());
+        var state = new GenState(cfg.maxTokens(), cfg.stopSequences());
         return Stream
                 .generate(() -> nextToken(sampler, state))
                 .takeWhile(t -> t != null)
@@ -93,7 +94,10 @@ public final class Context implements AutoCloseable {
         }
         var piece = tokenizer.tokenToPiece(id, true);
         state.advance();
-        feedBack(id, state);
+        state.observe(piece);
+        if (!state.done()) {
+            feedBack(id, state);
+        }
         return new Token(id, piece);
     }
 
@@ -107,11 +111,19 @@ public final class Context implements AutoCloseable {
 
     private static final class GenState {
         private final int max;
+        private final List<String> stops;
+        private final int tailCap;
+        private final StringBuilder tail;
         private int produced;
         private boolean stopped;
 
-        GenState(int max) {
+        GenState(int max, List<String> stops) {
             this.max = max;
+            this.stops = stops == null ? List.of() : stops;
+            var longest = 0;
+            for (var s : this.stops) longest = Math.max(longest, s.length());
+            this.tailCap = longest;
+            this.tail = longest == 0 ? null : new StringBuilder(longest * 2);
         }
 
         boolean done() {
@@ -124,6 +136,30 @@ public final class Context implements AutoCloseable {
 
         void stop() {
             stopped = true;
+        }
+
+        void observe(String piece) {
+            if (tail == null || piece == null || piece.isEmpty()) return;
+            tail.append(piece);
+            if (tail.length() > tailCap * 2) {
+                tail.delete(0, tail.length() - tailCap);
+            }
+            for (var s : stops) {
+                if (endsWith(tail, s)) {
+                    stop();
+                    return;
+                }
+            }
+        }
+
+        private static boolean endsWith(StringBuilder buf, String suffix) {
+            var n = suffix.length();
+            if (buf.length() < n) return false;
+            var offset = buf.length() - n;
+            for (var i = 0; i < n; i++) {
+                if (buf.charAt(offset + i) != suffix.charAt(i)) return false;
+            }
+            return true;
         }
     }
 }

@@ -32,6 +32,8 @@ void main() {
     testParserDropsNullLeadingSentinel(tpl);
     testParserDropsNullOnlyOutput(tpl);
     testRendererSuppressesNullAssistantText(tpl);
+    testStopSequencesIncludeToolCallAndTurnClose(tpl);
+    testParserStripsTrailingTurnMarker(tpl);
 
     IO.println("[ok] gemma4 template render + parse");
 }
@@ -139,6 +141,22 @@ void testParserDropsNullOnlyOutput(ChatTemplate tpl) {
         throw new AssertionError("expected Text, got " + parsed.getClass());
     if (!t.text().isEmpty())
         throw new AssertionError("expected empty text, got: '" + t.text() + "'");
+}
+
+void testStopSequencesIncludeToolCallAndTurnClose(ChatTemplate tpl) {
+    var stops = tpl.stopSequences();
+    if (!stops.contains("<tool_call|>"))
+        throw new AssertionError("expected <tool_call|> in stop sequences, got: " + stops);
+    if (!stops.contains("<turn|>"))
+        throw new AssertionError("expected <turn|> in stop sequences, got: " + stops);
+}
+
+void testParserStripsTrailingTurnMarker(ChatTemplate tpl) {
+    var parsed = tpl.parse("Hello there.<turn|>");
+    if (!(parsed instanceof ToolCallParser.Text t))
+        throw new AssertionError("expected Text, got " + parsed.getClass());
+    if (!"Hello there.".equals(t.text()))
+        throw new AssertionError("trailing <turn|> not stripped, got: '" + t.text() + "'");
 }
 
 void testRendererSuppressesNullAssistantText(ChatTemplate tpl) {

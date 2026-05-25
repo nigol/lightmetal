@@ -78,7 +78,7 @@ public final class MessagesHandler implements HttpHandler {
 
     JSONObject generate(AnthropicMessagesRequest req) {
         var prompt = buildPrompt(req);
-        var cfg = baseConfig(req);
+        var cfg = baseConfig(req).withStopSequences(chatTemplate.stopSequences());
         Log.debug("[prompt template=" + template + "]\n" + prompt + "\n[/prompt]");
 
         var raw = new StringBuilder();
