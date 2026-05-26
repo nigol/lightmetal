@@ -12,7 +12,7 @@ import lm.inspection.entity.GGUFMetadata;
 // (lowercased) against GGUF general.name; order constants most-specific first.
 public enum ModelFamily {
 
-    GEMMA_4("gemma-3-4b", GemmaChatTemplate::new),
+    GEMMA_4("gemma-4", GemmaChatTemplate::new),
     GEMMA_3("gemma-3", GemmaChatTemplate::new),
     MISTRAL_NEMO("nemo", Mistral4ChatTemplate::new),
     MISTRAL_4("mistral", Mistral4ChatTemplate::new);
