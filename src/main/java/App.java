@@ -9,9 +9,11 @@ import lm.generation.boundary.LightMetal;
 import lm.generation.entity.Tps;
 import lm.http.boundary.HttpAPI;
 import lm.logging.control.Log;
+import lm.version.control.Version;
 
 void main(String... args) {
     ZCfg.load("lightmetal");
+    Log.system("[lightmetal " + Version.VALUE + "]");
     var parsed = parseArgs(args);
     if (parsed.help() || parsed.model() == null || (!parsed.serve() && parsed.prompt() == null)) {
         printUsage();
