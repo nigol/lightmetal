@@ -23,6 +23,10 @@ void main(String... args) {
         runServer(parsed);
         return;
     }
+    runOneShot(parsed);
+}
+
+void runOneShot(Args parsed) {
     var cfg = new GenerationConfig(
             parsed.maxTokens(),
             parsed.temperature(),
@@ -32,15 +36,14 @@ void main(String... args) {
             parsed.seed());
     var count = new long[1];
     var startNanos = new long[1];
-    try (var lm = LightMetal.load(Path.of(parsed.model()))) {
-        try (var stream = lm.generate(parsed.prompt(), cfg)) {
-            stream.forEach(t -> {
-                if (startNanos[0] == 0L) startNanos[0] = System.nanoTime();
-                count[0]++;
-                IO.print(t.text());
-                System.out.flush();
-            });
-        }
+    try (var lm = LightMetal.load(Path.of(parsed.model()));
+         var stream = lm.generate(parsed.prompt(), cfg)) {
+        stream.forEach(t -> {
+            if (startNanos[0] == 0L) startNanos[0] = System.nanoTime();
+            count[0]++;
+            IO.print(t.text());
+            System.out.flush();
+        });
     }
     IO.println("");
     if (count[0] > 1)
