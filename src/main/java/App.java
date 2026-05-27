@@ -26,18 +26,25 @@ void main(String... args) {
     runOneShot(parsed);
 }
 
-void runOneShot(Args parsed) {
-    var cfg = new GenerationConfig(
+void runOneShot(Args parsed){
+     var cfg = new GenerationConfig(
             parsed.maxTokens(),
             parsed.temperature(),
             parsed.topP(),
             parsed.topK(),
             parsed.minP(),
             parsed.seed());
+    var model = parsed.model();
+    var prompt = parsed.prompt();
+    this.runOneShot(model,prompt,cfg);
+}
+
+void runOneShot(String model,String prompt,GenerationConfig cfg) {
+   
     var count = new long[1];
     var startNanos = new long[1];
-    try (var lm = LightMetal.load(Path.of(parsed.model()));
-         var stream = lm.generate(parsed.prompt(), cfg)) {
+    try (var lm = LightMetal.load(Path.of(model));
+         var stream = lm.generate(prompt, cfg)) {
         stream.forEach(t -> {
             if (startNanos[0] == 0L) startNanos[0] = System.nanoTime();
             count[0]++;
