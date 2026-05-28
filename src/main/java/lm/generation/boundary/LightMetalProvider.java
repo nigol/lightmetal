@@ -10,7 +10,7 @@ public final class LightMetalProvider implements BinaryOperator<String> {
 
     @Override
     public String apply(String model, String prompt) {
-        return run(model, prompt, GenerationConfig.defaults());
+        return run(model, prompt, GenerationConfig.fromProperties());
     }
 
     public String run(String model, String prompt, GenerationConfig config) {
