@@ -1,6 +1,7 @@
 package lm.generation.boundary;
 
 import module java.base;
+import lm.configuration.control.ZCfg;
 import lm.configuration.entity.GenerationConfig;
 import lm.generation.entity.Tps;
 import lm.logging.control.Log;
@@ -12,12 +13,14 @@ public final class LightMetalProvider implements BinaryOperator<String> {
         return run(model, prompt, GenerationConfig.defaults());
     }
 
-    public String run(String model, String prompt, GenerationConfig cfg) {
+    public String run(String model, String prompt, GenerationConfig config) {
+        ZCfg.load("lightmetal");
         var out = new StringBuilder();
         var count = new AtomicLong();
         var startNanos = new AtomicLong();
-        try (var lm = LightMetal.load(Path.of(model));
-             var stream = lm.generate(prompt, cfg)) {
+        var modelPath = Path.of(model);
+        try (var lm = LightMetal.load(modelPath);
+             var stream = lm.generate(prompt, config)) {
             stream.forEach(t -> {
                 startNanos.compareAndSet(0L, System.nanoTime());
                 count.incrementAndGet();
