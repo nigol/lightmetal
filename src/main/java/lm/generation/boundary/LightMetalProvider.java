@@ -5,13 +5,15 @@ import lm.configuration.entity.GenerationConfig;
 import lm.generation.entity.Tps;
 import lm.logging.control.Log;
 
-public interface OneShot {
+public final class LightMetalProvider implements BinaryOperator<String> {
 
-    static void run(String model, String prompt) {
-        run(model, prompt, GenerationConfig.defaults());
+    @Override
+    public String apply(String model, String prompt) {
+        return run(model, prompt, GenerationConfig.defaults());
     }
 
-    static void run(String model, String prompt, GenerationConfig cfg) {
+    public String run(String model, String prompt, GenerationConfig cfg) {
+        var out = new StringBuilder();
         var count = new AtomicLong();
         var startNanos = new AtomicLong();
         try (var lm = LightMetal.load(Path.of(model));
@@ -19,12 +21,11 @@ public interface OneShot {
             stream.forEach(t -> {
                 startNanos.compareAndSet(0L, System.nanoTime());
                 count.incrementAndGet();
-                System.out.print(t.text());
-                System.out.flush();
+                out.append(t.text());
             });
         }
-        System.out.println();
         if (count.get() > 1)
             Log.system("[" + Tps.measure(count.get(), startNanos.get()) + "]");
+        return out.toString();
     }
 }
