@@ -53,6 +53,7 @@ public final class Model implements AutoCloseable {
     }
 
     private void logChatTemplate() {
+        if (!Log.isDebugMode()) return;
         var tmplPtr = llama_model_chat_template(handle, MemorySegment.NULL);
         if (MemorySegment.NULL.equals(tmplPtr)) {
             Log.debug("[chat_template] (none stored in GGUF)");

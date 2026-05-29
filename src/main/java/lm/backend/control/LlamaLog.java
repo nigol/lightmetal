@@ -12,6 +12,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 
+import lm.logging.control.Log;
+
 final class LlamaLog {
 
     private static final SymbolLookup LOOKUP = SymbolLookup.libraryLookup(
@@ -37,11 +39,10 @@ final class LlamaLog {
     }
 
     static void done() {
-        System.err.println();
+        Log.progressDone();
     }
 
     private static void tick(int level, MemorySegment text, MemorySegment userData) {
-        System.err.print('.');
-        System.err.flush();
+        Log.progress();
     }
 }

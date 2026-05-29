@@ -1,6 +1,9 @@
 package lm.logging.control;
 
 import java.io.PrintStream;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import lm.configuration.control.ZCfg;
 
 public enum Log {
 
@@ -8,7 +11,11 @@ public enum Log {
     SYSTEM(Color.BLUE, System.out),
     DEBUG(Color.VIOLET, System.out),
     SUCCESS(Color.MAGENTA, System.out),
-    HTTP(Color.CYAN, System.out);
+    HTTP(Color.CYAN, System.out),
+    PROGRESS(Color.CYAN, System.err);
+
+    private static final char[] SPINNER_FRAMES = {'|', '/', '-', '\\'};
+    private static final AtomicInteger SPINNER_TICK = new AtomicInteger();
 
     private final PrintStream out;
     private final String value;
@@ -55,7 +62,12 @@ public enum Log {
     }
 
     public static void debug(String message) {
+        if (!isDebugMode()) return;
         Log.DEBUG.out(message);
+    }
+
+    public static boolean isDebugMode() {
+        return ZCfg.bool("debug", false);
     }
 
     public static void success(String message) {
@@ -64,5 +76,17 @@ public enum Log {
 
     public static void http(String message) {
         Log.HTTP.out(message);
+    }
+
+    public static void progress() {
+        var frame = SPINNER_FRAMES[SPINNER_TICK.getAndIncrement() % SPINNER_FRAMES.length];
+        PROGRESS.out.print("\r" + PROGRESS.formatted(String.valueOf(frame)));
+        PROGRESS.out.flush();
+    }
+
+    public static void progressDone() {
+        PROGRESS.out.print("\r \r");
+        PROGRESS.out.flush();
+        SPINNER_TICK.set(0);
     }
 }
