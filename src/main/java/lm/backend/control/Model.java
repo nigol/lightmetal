@@ -25,6 +25,7 @@ public final class Model implements AutoCloseable {
         var params = llama_model_default_params(modelArena);
         llama_model_params.n_gpu_layers(params, -1);
         this.handle = llama_model_load_from_file(pathSeg, params);
+        LlamaLog.done();
         if (MemorySegment.NULL.equals(handle)) {
             modelArena.close();
             throw new IllegalStateException("failed to load model: " + gguf);
@@ -63,6 +64,7 @@ public final class Model implements AutoCloseable {
 
     private static void ensureBackendInit() {
         if (INITIALIZED.compareAndSet(false, true)) {
+            LlamaLog.install();
             llama_backend_init();
             Runtime.getRuntime().addShutdownHook(new Thread(Model::shutdown));
         }
