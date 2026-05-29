@@ -1,7 +1,6 @@
 package lm.logging.control;
 
 import java.io.PrintStream;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import lm.configuration.control.ZCfg;
 
@@ -13,9 +12,6 @@ public enum Log {
     SUCCESS(Color.MAGENTA, System.out),
     HTTP(Color.CYAN, System.out),
     PROGRESS(Color.CYAN, System.err);
-
-    private static final char[] SPINNER_FRAMES = {'|', '/', '-', '\\'};
-    private static final AtomicInteger SPINNER_TICK = new AtomicInteger();
 
     private final PrintStream out;
     private final String value;
@@ -79,14 +75,11 @@ public enum Log {
     }
 
     public static void progress() {
-        var frame = SPINNER_FRAMES[SPINNER_TICK.getAndIncrement() % SPINNER_FRAMES.length];
-        PROGRESS.out.print("\r" + PROGRESS.formatted(String.valueOf(frame)));
+        PROGRESS.out.print(PROGRESS.formatted("."));
         PROGRESS.out.flush();
     }
 
     public static void progressDone() {
-        PROGRESS.out.print("\r \r");
-        PROGRESS.out.flush();
-        SPINNER_TICK.set(0);
+        PROGRESS.out.println();
     }
 }

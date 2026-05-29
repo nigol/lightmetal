@@ -38,10 +38,6 @@ final class LlamaLog {
         }
     }
 
-    static void done() {
-        Log.progressDone();
-    }
-
     private static void tick(int level, MemorySegment text, MemorySegment userData) {
         Log.progress();
     }

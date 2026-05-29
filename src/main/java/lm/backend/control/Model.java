@@ -25,7 +25,6 @@ public final class Model implements AutoCloseable {
         var params = llama_model_default_params(modelArena);
         llama_model_params.n_gpu_layers(params, -1);
         this.handle = llama_model_load_from_file(pathSeg, params);
-        LlamaLog.done();
         if (MemorySegment.NULL.equals(handle)) {
             modelArena.close();
             throw new IllegalStateException("failed to load model: " + gguf);

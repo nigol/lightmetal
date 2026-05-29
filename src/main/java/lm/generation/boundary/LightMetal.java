@@ -35,6 +35,7 @@ public final class LightMetal implements AutoCloseable {
         logMetadata(metadata);
         var model = new Model(gguf);
         var ctx = model.newContext(contextParams());
+        Log.progressDone();
         return new LightMetal(model, ctx, metadata);
     }
 
