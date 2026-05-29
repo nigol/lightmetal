@@ -40,7 +40,13 @@ public enum Log {
         return this.value.formatted(raw);
     }
 
+    private static volatile boolean progressActive;
+
     void out(String message) {
+        if (progressActive) {
+            PROGRESS.out.println();
+            progressActive = false;
+        }
         this.out.println(formatted(message));
     }
 
@@ -75,11 +81,14 @@ public enum Log {
     }
 
     public static void progress() {
+        progressActive = true;
         PROGRESS.out.print(PROGRESS.formatted("."));
         PROGRESS.out.flush();
     }
 
     public static void progressDone() {
+        if (!progressActive) return;
         PROGRESS.out.println();
+        progressActive = false;
     }
 }
