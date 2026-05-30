@@ -55,7 +55,7 @@ public final class LightMetal implements AutoCloseable {
                 .template();
         var rendered = template.render(systemPrompt, List.of(),
                 List.of(new UserText(userPrompt)));
-        return complete(rendered, cfg);
+        return template.tagChannels(complete(rendered, cfg));
     }
 
     public Stream<Token> complete(String formattedPrompt, GenerationConfig cfg) {

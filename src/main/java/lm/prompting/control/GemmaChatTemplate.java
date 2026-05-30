@@ -2,10 +2,12 @@ package lm.prompting.control;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import lm.configuration.entity.Token;
 import lm.http.entity.AnthropicMessagesRequest.Turn;
 import lm.tools.control.ToolCallParser;
 import lm.tools.entity.Tool;
@@ -31,6 +33,46 @@ public final class GemmaChatTemplate implements ChatTemplate {
     @Override
     public List<String> stopSequences() {
         return STOPS;
+    }
+
+    // The gemma4 prefill (`<|channel>thought\n<channel|>`) starts the model inside
+    // the thought channel, so streamed tokens are tagged "thought" until the model
+    // emits `<channel|>` to switch to the answer channel ("final"). The marker may
+    // be split across token pieces — we buffer the trailing bytes that could be a
+    // partial match so the marker is detected even across token boundaries.
+    @Override
+    public Stream<Token> tagChannels(Stream<Token> tokens) {
+        var filter = new ChannelFilter();
+        return tokens.flatMap(t -> filter.consume(t).stream())
+                .onClose(() -> { /* nothing to flush — partial marker bytes are discarded */ });
+    }
+
+    static final class ChannelFilter {
+        private static final String CLOSE = PromptTemplate.GEMMA_CHANNEL_CLOSE;
+        private final StringBuilder pending = new StringBuilder();
+        private String channel = "thought";
+
+        List<Token> consume(Token in) {
+            pending.append(in.text());
+            var out = new ArrayList<Token>();
+            while (true) {
+                var idx = pending.indexOf(CLOSE);
+                if (idx >= 0) {
+                    if (idx > 0) {
+                        out.add(new Token(in.id(), pending.substring(0, idx), channel));
+                    }
+                    pending.delete(0, idx + CLOSE.length());
+                    channel = "final";
+                    continue;
+                }
+                var safeLen = pending.length() - (CLOSE.length() - 1);
+                if (safeLen > 0) {
+                    out.add(new Token(in.id(), pending.substring(0, safeLen), channel));
+                    pending.delete(0, safeLen);
+                }
+                return out;
+            }
+        }
     }
 
     @Override

@@ -25,6 +25,7 @@ public final class LightMetalProvider implements BinaryOperator<String> {
             stream.forEach(t -> {
                 startNanos.compareAndSet(0L, System.nanoTime());
                 count.incrementAndGet();
+                if ("thought".equals(t.channel())) return;
                 out.append(t.text());
             });
         }
