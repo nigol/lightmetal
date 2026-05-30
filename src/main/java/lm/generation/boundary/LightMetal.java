@@ -44,12 +44,16 @@ public final class LightMetal implements AutoCloseable {
     }
 
     public Stream<Token> generate(String userPrompt, GenerationConfig cfg) {
+        return generate("", userPrompt, cfg);
+    }
+
+    public Stream<Token> generate(String systemPrompt, String userPrompt, GenerationConfig cfg) {
         var template = ModelFamily.from(metadata)
                 .orElseThrow(() -> new IllegalStateException(
                         "no ModelFamily entry for GGUF name=" + metadata.name().orElse("?")
                                 + " — add it to lm.prompting.control.ModelFamily"))
                 .template();
-        var rendered = template.render("", List.of(),
+        var rendered = template.render(systemPrompt, List.of(),
                 List.of(new UserText(userPrompt)));
         return complete(rendered, cfg);
     }
