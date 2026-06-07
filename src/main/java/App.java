@@ -1,8 +1,8 @@
-import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import lm.catalog.boundary.ModelCatalog;
 import lm.configuration.control.ZCfg;
 import lm.configuration.entity.GenerationConfig;
 import lm.generation.boundary.LightMetal;
@@ -35,11 +35,11 @@ void runOneShot(Args parsed) {
             parsed.minP(),
             parsed.seed());
     var generator = new LightMetalProvider();
-    System.out.println(generator.run(parsed.model(), parsed.prompt(), cfg));
+    System.out.println(generator.run(ModelCatalog.resolve(parsed.model()).toString(), parsed.prompt(), cfg));
 }
 
 void runServer(Args parsed) {
-    var lm = LightMetal.load(Path.of(parsed.model()));
+    var lm = LightMetal.load(ModelCatalog.resolve(parsed.model()));
     var api = HttpAPI.start(lm, parsed.port());
     var latch = new CountDownLatch(1);
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -131,7 +131,7 @@ record Args(
 
 enum Arg {
     HELP("-help", "show this help", true, null),
-    MODEL("-model", "path to GGUF model file", false, null),
+    MODEL("-model", "GGUF file name (resolved against models.directory)", false, null),
     PROMPT("-prompt", "user prompt text (omit with -serve)", false, null),
     MAX_TOKENS("-max-tokens", "max tokens to generate", true,
                GenerationConfig.defaults().maxTokens()),

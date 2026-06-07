@@ -1,6 +1,6 @@
 import java.nio.file.Files;
-import java.nio.file.Path;
 
+import lm.catalog.boundary.ModelCatalog;
 import lm.configuration.control.ZCfg;
 import lm.configuration.entity.GenerationConfig;
 import lm.configuration.entity.Token;
@@ -8,9 +8,14 @@ import lm.generation.boundary.LightMetal;
 
 void main() {
     ZCfg.load("lightmetal");
-    var modelPath = ZCfg.string("model");
-    if (modelPath == null || !Files.exists(Path.of(modelPath))) {
-        IO.println("[skip] no usable model configured (model=" + modelPath + ")");
+    var fileName = ZCfg.string("model");
+    if (fileName == null) {
+        IO.println("[skip] no model configured");
+        return;
+    }
+    var modelPath = ModelCatalog.resolve(fileName);
+    if (!Files.exists(modelPath)) {
+        IO.println("[skip] model not found at " + modelPath);
         return;
     }
 
@@ -19,7 +24,7 @@ void main() {
     var count = new int[1];
     var firstId = new int[]{Integer.MIN_VALUE};
 
-    try (var lm = LightMetal.load(Path.of(modelPath));
+    try (var lm = LightMetal.load(modelPath);
          var stream = lm.generate("Say hi.", cfg)) {
         stream.forEach(t -> {
             if (count[0] == 0) firstId[0] = t.id();

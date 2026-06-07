@@ -2,8 +2,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 
+import lm.catalog.boundary.ModelCatalog;
 import lm.configuration.control.ZCfg;
 import lm.inspection.boundary.Inspector;
 import lm.inspection.control.GGUFReader;
@@ -102,12 +102,17 @@ void testRejectsUnsupportedVersion() {
 
 void testRealModel() {
     ZCfg.load("lightmetal");
-    var modelPath = ZCfg.string("model");
-    if (modelPath == null || !Files.exists(Path.of(modelPath))) {
+    var fileName = ZCfg.string("model");
+    if (fileName == null) {
         IO.println("[skip] no real model configured for Inspector integration");
         return;
     }
-    var meta = Inspector.inspect(Path.of(modelPath));
+    var modelPath = ModelCatalog.resolve(fileName);
+    if (!Files.exists(modelPath)) {
+        IO.println("[skip] model not found at " + modelPath);
+        return;
+    }
+    var meta = Inspector.inspect(modelPath);
 
     if (meta.kvs().isEmpty())
         throw new AssertionError("real model returned no kv pairs");

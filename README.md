@@ -25,11 +25,13 @@ java --enable-native-access=ALL-UNNAMED -jar zbo/lightmetal.jar \
 Options: `-max-tokens`, `-temperature`, `-top-p`, `-top-k`, `-min-p`, `-seed`,
 `-serve`, `-port`, `-help`.
 
-The only mandatory property is `model`. With it set in
+The only mandatory property is `model` — the GGUF *file name* inside
+`models.directory` (defaults to `~/models`). With it set in
 `~/.lightmetal/app.properties`:
 
 ```properties
-model=/Users/duke/Downloads/Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf
+models.directory=~/models
+model=Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf
 ```
 
 the invocation collapses to just the prompt (CLI flags still override any
@@ -138,10 +140,13 @@ with the `LIGHTMETAL_LIB` environment variable.
 ### Minimal configuration
 
 Only `model` is mandatory. Everything else has a default, and `template` is
-auto-derived from the GGUF when not set explicitly.
+auto-derived from the GGUF when not set explicitly. `model` is the GGUF file
+name; the containing directory is taken from `models.directory` (default
+`~/models`).
 
 ```properties
-model=/path/to/your.gguf
+models.directory=~/models
+model=your.gguf
 ```
 
 Properties are looked up in this order (later wins):
