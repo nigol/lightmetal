@@ -1,0 +1,68 @@
+#!/usr/bin/env -S java --source 25 -cp ./zbo/lightmetal.jar
+
+import lm.catalog.boundary.ModelCatalog;
+import lm.configuration.control.ZCfg;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-06-07.1";
+
+void main(String... args) throws Exception {
+    if (args.length > 0 && args[0].equals("-version")) {
+        IO.println(name + " " + version);
+        return;
+    }
+    ZCfg.load("lightmetal");
+    var models = ModelCatalog.list();
+    if (models.isEmpty()) {
+        System.err.println(name + ": no models found in " + ModelCatalog.resolveDirectory());
+        System.exit(1);
+    }
+    var activeName = activeModelFileName();
+    models.forEach(m -> printModel(m, activeName));
+}
+
+String activeModelFileName() {
+    var configured = ZCfg.string("model");
+    if (configured == null || configured.isBlank()) {
+        return null;
+    }
+    return Path.of(configured).getFileName().toString();
+}
+
+void printModel(String fileName, String activeName) {
+    if (fileName.equals(activeName)) {
+        Log.active("* " + fileName);
+    } else {
+        IO.println("  " + fileName);
+    }
+}
+
+enum Log {
+
+    ACTIVE(Color.GREEN);
+
+    enum Color {
+        GREEN("[38;2;133;153;0m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    static final String RESET = "[0m";
+    String value;
+
+    Log(Color color) {
+        this.value = color.code + "%s" + RESET;
+    }
+
+    void out(String message) {
+        System.out.println(value.formatted(message));
+    }
+
+    public static void active(String message) {
+        Log.ACTIVE.out(message);
+    }
+}
