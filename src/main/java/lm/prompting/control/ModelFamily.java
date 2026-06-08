@@ -15,6 +15,7 @@ public enum ModelFamily {
     GEMMA_4("gemma-4", GemmaChatTemplate::new),
     GEMMA_3("gemma-3", GemmaChatTemplate::new),
     MISTRAL_NEMO("nemo", Mistral4ChatTemplate::new),
+    DEVSTRAL("devstral", Mistral4ChatTemplate::new),
     MISTRAL_4("mistral", Mistral4ChatTemplate::new);
 
     private final String nameFragment;
