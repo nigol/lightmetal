@@ -2,8 +2,8 @@
 
 GPU LLM inference on Apple Silicon from a single Java 25 executable JAR with
 zero dependencies. Binds a Metal-enabled `libllama.dylib` through the Foreign
-Function & Memory API. Runs Mistral-architecture GGUF models such as Mistral
-Medium 3.5.
+Function & Memory API. Runs Mistral- and Gemma-architecture GGUF models —
+Mistral Medium 3.5, Mistral Nemo, Devstral, Gemma 3, Gemma 4.
 
 ![lightmetal](lightmetal.png)
 
@@ -117,12 +117,35 @@ Hosts running multiple unrelated providers on the same classpath should filter
 by `instanceof lm.generation.boundary.LightMetalProvider` rather than relying
 on iteration order.
 
+## Scripts
+
+The four scripts at the repository root are single-file Java 25 utilities
+(shebang-launched, no `.java` extension) that use `lightmetal.jar` directly off
+the classpath. Drop them on `PATH`, set `model=…` in
+`~/.lightmetal/app.properties`, and they share the same model resolution as the
+JAR.
+
+| Script | What it does |
+|---|---|
+| [`lmprompt`](lmprompt) | One-shot REPL: type a prompt, stream the response, print tps. An optional fragment argument (`lmprompt gemma`) is matched against `ModelCatalog.search(…)` and picks the unique match. |
+| [`lmlist`](lmlist) | Lists every GGUF in `models.directory`; the active model (`model=…`) is marked with a green `*`. |
+| [`lmprobe`](lmprobe) | Inspects a GGUF's metadata — name, architecture, bos/eos token ids, a slice of the vocab, and the raw `tokenizer.chat_template`. Takes an optional file name. |
+| [`lmtps`](lmtps) | Measures tokens/sec for the active model on a default prompt. `lmtps -all` benchmarks every model in the catalog; trailing args are joined into a custom prompt. |
+
+```
+$ lmprompt
+lmprompt 2026-06-07.2
+Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003> What is Java?
+…
+[Mistral-Medium-3.5: 42.1 tps]
+```
+
 ## Architecture
 
 ```mermaid
 flowchart TD
     CLI["lightmetal CLI<br/>App.java (Java 25)"]
-    HTTP["lm.http.boundary.HttpAPI<br/>POST /v1/messages"]
+    HTTP["lm.http.boundary.HttpAPI<br/>/v1/messages · /v1/chat/completions · /v1/models"]
     SPI["lm.generation.boundary.LightMetalProvider<br/>ServiceLoader&lt;BinaryOperator&lt;String&gt;&gt;"]
     LM["lm.generation.boundary.LightMetal<br/>load · generate : Stream&lt;Token&gt;"]
     Model["lm.backend.control.Model<br/>FFM → libllama.dylib"]
@@ -201,11 +224,20 @@ All optional — defaults shown.
 |---|---|---|
 | `context.length` | `32768` | KV cache size in tokens. Memory scales linearly. The GGUF's full context (e.g. 262144 for gemma-4) is intentionally NOT auto-applied — that's what the model supports, not what fits your RAM. Raise it explicitly when you need it. |
 | `context.batch.size` | `2048` | `n_ubatch` — physical decode chunk size. |
-| `context.gpu.layers` | `-1` | Layers offloaded to Metal; `-1` = all. |
-| `context.seed` | `0` | Context seed. |
+
+### Debugging
+
+| Property | Default | Effect |
+|---|---|---|
+| `debug` | `false` | When `true`, dumps every GGUF kv pair at load (`[inspector]   key = …`) and logs each stop-sequence match (`[stop] matched …`). |
 
 ### Environment variables
 
 | Variable | Effect |
 |---|---|
 | `LIGHTMETAL_LIB` | Absolute path to `libllama.dylib`. Overrides the `brew --prefix llama.cpp` fallback. |
+
+## Workshops
+
+Hands-on workshops on Java, AI, Agents and Clouds:
+[airhacks.live](https://airhacks.live).
