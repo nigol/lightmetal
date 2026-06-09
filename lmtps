@@ -8,30 +8,12 @@ import lm.generation.boundary.LightMetal;
 import lm.generation.entity.Tps;
 
 String name = MethodHandles.lookup().lookupClass().getName();
-String version = "2026-06-08.1";
-String defaultPrompt = "What is Java?";
+String prompt = "Count from 1 to 10.";
 
 void main(String... args) throws Exception {
-    if (args.length > 0 && args[0].equals("-help")) {
-        IO.println("""
-                Usage: %s [-all] [prompt]
-                  prompt    text to send to the model (default: "%s")
-                  -all      measure TPS for every model in the catalog
-                  -help     Show this help
-                  -version  Show version
-                """.formatted(name, defaultPrompt));
-        return;
-    }
-    if (args.length > 0 && args[0].equals("-version")) {
-        IO.println(name + " " + version);
-        return;
-    }
-
     ZCfg.load("lightmetal");
 
-    var all = args.length > 0 && args[0].equals("-all");
-    var promptArgs = all ? Arrays.copyOfRange(args, 1, args.length) : args;
-    var prompt = promptArgs.length > 0 ? String.join(" ", promptArgs) : defaultPrompt;
+    var all = Stream.of(args).anyMatch("-all"::equals);
 
     if (all) {
         var models = ModelCatalog.list();
