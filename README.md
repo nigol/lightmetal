@@ -9,7 +9,7 @@ Mistral Medium 3.5, Mistral Nemo, Devstral, Gemma 3, Gemma 4.
 
 ## Prerequisites
 
-- Java 25+
+- Java 25+ (e.g. [corretto](https://docs.aws.amazon.com/corretto/latest/corretto-25-ug/downloads-list.html))
 - `brew install llama.cpp` (provides a Metal-enabled `libllama.dylib`)
 - [`zb`](https://github.com/AdamBien/zb) on PATH — only to build from source;
   prebuilt JARs are published on the [releases page](https://github.com/AdamBien/lightmetal/releases/latest).
