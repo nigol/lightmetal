@@ -1,11 +1,9 @@
-import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import lm.catalog.boundary.ModelCatalog;
 import lm.configuration.control.ZCfg;
 import lm.configuration.entity.GenerationConfig;
-import lm.generation.boundary.LightMetal;
 import lm.generation.boundary.LightMetalProvider;
 import lm.http.boundary.HttpAPI;
 import lm.logging.control.Log;
@@ -39,22 +37,7 @@ void runOneShot(Args parsed) {
 }
 
 void runServer(Args parsed) {
-    var lm = LightMetal.load(ModelCatalog.resolve(parsed.model()));
-    var api = HttpAPI.start(lm, parsed.port());
-    var latch = new CountDownLatch(1);
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-        Log.system("[shutting down]");
-        api.close();
-        lm.close();
-        latch.countDown();
-    }));
-    Log.success("[lightmetal serving %s on http://localhost:%d/v1/messages]"
-            .formatted(lm.metadata().name().orElse("model"), api.port()));
-    try {
-        latch.await();
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-    }
+    HttpAPI.serve(ModelCatalog.resolve(parsed.model()), parsed.port());
 }
 
 void printUsage() {
