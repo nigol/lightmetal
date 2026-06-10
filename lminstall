@@ -9,9 +9,10 @@ String baseUrl = "https://github.com/AdamBien/lightmetal/releases/latest/downloa
 Path jarTarget = Path.of("zbo", "lightmetal.jar");
 List<String> scripts = List.of("lmlist", "lmprobe", "lmprompt", "lmtps");
 
-/// JAR lands in `./zbo/` and the sibling `lm*` scripts in `./`, matching their
-/// `-cp ./zbo/lightmetal.jar` shebangs — the whole install only works when the
-/// user invokes the scripts from this same working directory.
+/// JAR lands in `./zbo/` and the sibling `lm*` scripts in `./`. The shebangs
+/// use `-cp ./zbo/lightmetal.jar:./lightmetal.jar`, so the scripts also work
+/// when the JAR sits next to them instead of under `zbo/` — but either way
+/// they must be invoked from the directory that holds the JAR.
 ///
 /// No flag handling — per the `/java-cli-script` convention, scripts with no
 /// operands surface their version as the first line of normal output instead

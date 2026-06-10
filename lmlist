@@ -1,4 +1,4 @@
-#!/usr/bin/env -S java --enable-native-access=ALL-UNNAMED --source 25 -cp ./zbo/lightmetal.jar
+#!/usr/bin/env -S java --enable-native-access=ALL-UNNAMED --source 25 -cp ./zbo/lightmetal.jar:./lightmetal.jar
 
 import lm.catalog.boundary.ModelCatalog;
 import lm.catalog.control.ModelsDirectory;

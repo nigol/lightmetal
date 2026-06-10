@@ -142,8 +142,10 @@ The four scripts at the repository root are single-file Java 25 utilities
 (shebang-launched, no `.java` extension, see the
 [AIrails.dev](https://airails.dev) `java-cli-script` skill) that use
 `lightmetal.jar` directly off the classpath. `lminstall` puts them next to
-`./zbo/lightmetal.jar`; their shebangs reference that JAR relatively, so run
-them from the install directory. With `model=…` in
+`./zbo/lightmetal.jar`; their shebangs use
+`-cp ./zbo/lightmetal.jar:./lightmetal.jar`, so they also work when the JAR
+sits side-by-side with the scripts instead of under `zbo/`. Either way, run
+them from the directory that holds the JAR. With `model=…` in
 `~/.lightmetal/app.properties` they share the same model resolution as the JAR.
 
 | Script | What it does |
