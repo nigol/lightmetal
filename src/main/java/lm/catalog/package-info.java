@@ -4,8 +4,9 @@
 ///
 /// Lets the CLI, the scripts, and the embed-via-SPI path refer to models by
 /// their GGUF file name only. The containing directory is centralised in
-/// `models.directory` (default `~/models`) so users do not have to repeat
-/// absolute paths everywhere.
+/// `models.directory` (default `models` — resolved against the current
+/// working directory) so users do not have to repeat absolute paths
+/// everywhere.
 ///
 /// ## Sharded GGUFs
 ///

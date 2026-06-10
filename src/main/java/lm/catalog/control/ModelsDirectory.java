@@ -7,7 +7,7 @@ import lm.configuration.control.ZCfg;
 public interface ModelsDirectory {
 
     String KEY = "models.directory";
-    String DEFAULT = "~/models";
+    String DEFAULT = "models";
 
     static Path path() {
         var configured = ZCfg.string(KEY, DEFAULT);

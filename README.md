@@ -35,7 +35,7 @@ zb build   # produces zbo/lightmetal.jar
 
 ```
 java --enable-native-access=ALL-UNNAMED -jar lightmetal.jar \
-     -model ~/models/gemma-4-31B-it-UD-Q8_K_XL.gguf \
+     -model models/gemma-4-31B-it-UD-Q8_K_XL.gguf \
      -prompt "What is the relation between Sun Microsystems and Java"
 ```
 
@@ -43,11 +43,12 @@ Options: `-max-tokens`, `-temperature`, `-top-p`, `-top-k`, `-min-p`, `-seed`,
 `-serve`, `-port`, `-help`.
 
 The only mandatory property is `model` — the GGUF *file name* inside
-`models.directory` (defaults to `~/models`). With it set in
+`models.directory` (defaults to `models`, relative to the current working
+directory). With it set in
 `~/.lightmetal/app.properties`:
 
 ```properties
-models.directory=~/models
+models.directory=models
 model=Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf
 ```
 
@@ -69,7 +70,7 @@ because llama.cpp contexts are not thread-safe.
 
 ```
 java --enable-native-access=ALL-UNNAMED -jar zbo/lightmetal.jar \
-     -model ~/models/Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf \
+     -model models/Mistral-Medium-3.5-128B-UD-Q5_K_XL-00001-of-00003.gguf \
      -serve -port 8080
 ```
 
@@ -207,10 +208,10 @@ with the `LIGHTMETAL_LIB` environment variable.
 Only `model` is mandatory. Everything else has a default, and `template` is
 auto-derived from the GGUF when not set explicitly. `model` is the GGUF file
 name; the containing directory is taken from `models.directory` (default
-`~/models`).
+`models`, relative to the current working directory).
 
 ```properties
-models.directory=~/models
+models.directory=models
 model=your.gguf
 ```
 
