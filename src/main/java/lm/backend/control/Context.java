@@ -23,22 +23,24 @@ public final class Context implements AutoCloseable {
     private final Model model;
     private final MemorySegment ctx;
     private final Tokenizer tokenizer;
+    private final int batchSize;
 
     Context(Model model, ContextParams cfg) {
         this.model = model;
+        this.batchSize = cfg.batchSize();
         var nCtx = cfg.contextLength() > 0 ? cfg.contextLength() : llama_model_n_ctx_train(model.handle);
         try (var arena = Arena.ofConfined()) {
             var params = llama_context_default_params(arena);
             llama_context_params.n_ctx(params, nCtx);
-            llama_context_params.n_batch(params, nCtx);
-            llama_context_params.n_ubatch(params, cfg.batchSize());
+            llama_context_params.n_batch(params, batchSize);
+            llama_context_params.n_ubatch(params, batchSize);
             this.ctx = llama_new_context_with_model(model.handle, params);
         }
         if (MemorySegment.NULL.equals(ctx)) {
             throw new IllegalStateException("failed to create context");
         }
         this.tokenizer = new Tokenizer(model.vocab);
-        Log.system("[ctx] n_ctx=" + llama_n_ctx(ctx) + " n_ubatch=" + cfg.batchSize());
+        Log.system("[ctx] n_ctx=" + llama_n_ctx(ctx) + " n_batch=" + batchSize + " n_ubatch=" + batchSize);
     }
 
     public int[] tokenize(String text, boolean addBos) {
@@ -67,11 +69,18 @@ public final class Context implements AutoCloseable {
         try (var arena = Arena.ofConfined()) {
             var tokSeg = arena.allocate(ValueLayout.JAVA_INT, promptTokens.length);
             MemorySegment.copy(promptTokens, 0, tokSeg, ValueLayout.JAVA_INT, 0, promptTokens.length);
-            var batch = llama_batch_get_one(arena, tokSeg, promptTokens.length);
-            if (llama_decode(ctx, batch) != 0) {
-                throw new IllegalStateException(
-                        "prompt decode failed: tokens=" + promptTokens.length
-                                + " n_ctx=" + llama_n_ctx(ctx));
+            for (var offset = 0; offset < promptTokens.length; offset += batchSize) {
+                var chunk = Math.min(batchSize, promptTokens.length - offset);
+                var slice = tokSeg.asSlice((long) offset * ValueLayout.JAVA_INT.byteSize(), chunk * ValueLayout.JAVA_INT.byteSize());
+                var batch = llama_batch_get_one(arena, slice, chunk);
+                if (llama_decode(ctx, batch) != 0) {
+                    throw new IllegalStateException(
+                            "prompt decode failed: tokens=" + promptTokens.length
+                                    + " at offset=" + offset
+                                    + " chunk=" + chunk
+                                    + " n_batch=" + batchSize
+                                    + " n_ctx=" + llama_n_ctx(ctx));
+                }
             }
         }
     }
