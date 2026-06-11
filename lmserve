@@ -3,12 +3,13 @@
 import lm.catalog.boundary.ModelCatalog;
 import lm.configuration.control.ZCfg;
 import lm.http.boundary.HttpAPI;
+import lm.version.control.Version;
 
 String name = MethodHandles.lookup().lookupClass().getName();
 String version = "2026-06-10.1";
 
 void main(String... args) throws Exception {
-    IO.println(name + " " + version);
+    IO.println(name + " " + version + " (lightmetal " + Version.VALUE + ")");
     if (args.length > 0 && args[0].equals("-help")) {
         IO.println("""
                 Usage: %s [model-fragment] [-port <n>]
