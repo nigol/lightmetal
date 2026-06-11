@@ -25,7 +25,6 @@ script (shebang-launched, no `.java` extension, see the
 curl -fLO https://github.com/AdamBien/lightmetal/releases/latest/download/lminstall
 chmod +x lminstall
 ./lminstall
-chmod +x lm*
 ```
 
 Or fetch only the JAR, or build from source with `zb`:
