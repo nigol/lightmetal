@@ -11,20 +11,42 @@ import lm.http.control.MessagesHandler;
 import lm.http.entity.AnthropicMessagesRequest;
 import lm.logging.control.Log;
 
-public final class LightMetalChat implements UnaryOperator<String> {
+public final class LightMetalChat implements UnaryOperator<String>, AutoCloseable {
+
+    LightMetal lm;
+    Path loadedPath;
 
     @Override
-    public String apply(String requestJson) {
-        ZCfg.load("lightmetal");
+    public synchronized String apply(String requestJson) {
         var root = new JSONObject(new JSONTokener(requestJson));
         var modelPath = Path.of(root.getString("model"));
-        Log.system("[model loaded from %s]".formatted(modelPath));
+        ensureLoaded(modelPath);
         var req = AnthropicMessagesRequest.from(root, GenerationConfig.fromProperties());
-        try (var lm = LightMetal.load(modelPath)) {
-            var resp = lm.chat(req.system(), req.tools(), req.turns(), config(req));
-            return MessagesHandler.toAnthropicJson(resp,
-                    lm.metadata().name().orElse("lightmetal")).toString();
+        var resp = lm.chat(req.system(), req.tools(), req.turns(), config(req));
+        return MessagesHandler.toAnthropicJson(resp,
+                lm.metadata().name().orElse("lightmetal")).toString();
+    }
+
+    @Override
+    public synchronized void close() {
+        if (lm == null) return;
+        lm.close();
+        lm = null;
+        loadedPath = null;
+    }
+
+    // Single-model session: the first apply() decides the path; a later apply()
+    // with a different path swaps (closes old, loads new). zsmith-style agents
+    // keep the same path forever and hit the fast path on every turn.
+    void ensureLoaded(Path modelPath) {
+        if (lm != null && modelPath.equals(loadedPath)) return;
+        if (lm != null) {
+            Log.system("[swapping model %s -> %s]".formatted(loadedPath, modelPath));
+            lm.close();
         }
+        ZCfg.load("lightmetal");
+        lm = LightMetal.load(modelPath);
+        loadedPath = modelPath;
     }
 
     static GenerationConfig config(AnthropicMessagesRequest req) {

@@ -6,6 +6,7 @@ import lm.generation.boundary.LightMetalChat;
 void main() {
     testSpiDiscovery();
     testReturnsLightMetalChatInstance();
+    testIsAutoCloseable();
     IO.println("[ok] LightMetalChat tests");
 }
 
@@ -31,4 +32,16 @@ void testReturnsLightMetalChatInstance() {
             .orElseThrow(() -> new AssertionError("no LightMetalChat registered"));
     if (!(provider instanceof UnaryOperator<?>))
         throw new AssertionError("registered provider does not implement UnaryOperator");
+}
+
+void testIsAutoCloseable() {
+    var provider = ServiceLoader.load(UnaryOperator.class).stream()
+            .map(ServiceLoader.Provider::get)
+            .filter(LightMetalChat.class::isInstance)
+            .findFirst()
+            .orElseThrow();
+    if (!(provider instanceof AutoCloseable))
+        throw new AssertionError(
+                "LightMetalChat must implement AutoCloseable so hosts can pattern-match "
+                        + "(if (chat instanceof AutoCloseable c) try (c) { ... }) and release the loaded model");
 }
