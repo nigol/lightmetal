@@ -6,7 +6,7 @@ import lm.configuration.entity.GenerationConfig;
 import lm.generation.entity.Tps;
 import lm.logging.control.Log;
 
-public final class LightMetalProvider implements BinaryOperator<String> {
+public final class LightMetalText implements BinaryOperator<String> {
 
     @Override
     public String apply(String model, String prompt) {

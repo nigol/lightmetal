@@ -4,7 +4,7 @@ import java.util.stream.Stream;
 import lm.catalog.boundary.ModelCatalog;
 import lm.configuration.control.ZCfg;
 import lm.configuration.entity.GenerationConfig;
-import lm.generation.boundary.LightMetalProvider;
+import lm.generation.boundary.LightMetalText;
 import lm.http.boundary.HttpAPI;
 import lm.logging.control.Log;
 import lm.version.control.Version;
@@ -32,7 +32,7 @@ void runOneShot(Args parsed) {
             parsed.topK(),
             parsed.minP(),
             parsed.seed());
-    var generator = new LightMetalProvider();
+    var generator = new LightMetalText();
     System.out.println(generator.run(ModelCatalog.resolve(parsed.model()).toString(), parsed.prompt(), cfg));
 }
 

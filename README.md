@@ -108,10 +108,13 @@ in the response as standard OpenAI `tool_calls`.
 
 ## Embed via SPI
 
-`lightmetal.jar` registers `lm.generation.boundary.LightMetalProvider` as a
-`java.util.function.BinaryOperator<String>` via `META-INF/services`. Hosts
-load it through `ServiceLoader` and invoke it without compiling against any
-lightmetal type — only the JAR on the runtime classpath is needed.
+`lightmetal.jar` registers two providers via `META-INF/services`:
+`lm.generation.boundary.LightMetalText` as `java.util.function.BinaryOperator<String>`
+for plain text completion, and `lm.generation.boundary.LightMetalChat` as
+`java.util.function.UnaryOperator<String>` for chat with tool calling
+(JSON-in/JSON-out, same shape as `/v1/messages`). Hosts load either through
+`ServiceLoader` and invoke it without compiling against any lightmetal type —
+only the JAR on the runtime classpath is needed.
 
 ```java
 import java.util.ServiceLoader;
@@ -129,11 +132,11 @@ sampling parameters and returns the full text. Each call loads and closes the
 GGUF, so this path suits sporadic invocations — long-lived hosts should run
 `-serve` and hit the HTTP API instead.
 
-The SPI descriptor lives under
-`META-INF/services/java.util.function.BinaryOperator`, a JDK-owned namespace.
-Hosts running multiple unrelated providers on the same classpath should filter
-by `instanceof lm.generation.boundary.LightMetalProvider` rather than relying
-on iteration order.
+The SPI descriptors live under `META-INF/services/java.util.function.BinaryOperator`
+and `.../UnaryOperator`, JDK-owned namespaces. Hosts running multiple unrelated
+providers on the same classpath should filter by
+`instanceof lm.generation.boundary.LightMetalText` (or `LightMetalChat`) rather
+than relying on iteration order.
 
 ## Scripts
 
@@ -205,7 +208,7 @@ Mac Studio M3 Ultra, 128 GB unified memory:
 flowchart TD
     CLI["lightmetal CLI<br/>App.java (Java 25)"]
     HTTP["lm.http.boundary.HttpAPI<br/>/v1/messages · /v1/chat/completions · /v1/models"]
-    SPI["lm.generation.boundary.LightMetalProvider<br/>ServiceLoader&lt;BinaryOperator&lt;String&gt;&gt;"]
+    SPI["lm.generation.boundary.LightMetalText · LightMetalChat<br/>ServiceLoader&lt;BinaryOperator · UnaryOperator&gt;"]
     LM["lm.generation.boundary.LightMetal<br/>load · generate : Stream&lt;Token&gt;"]
     Model["lm.backend.control.Model<br/>FFM → libllama.dylib"]
     Context["lm.backend.control.Context<br/>tokenize · decode · sample"]

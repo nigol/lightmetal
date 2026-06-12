@@ -11,7 +11,7 @@ import lm.http.control.MessagesHandler;
 import lm.http.entity.AnthropicMessagesRequest;
 import lm.logging.control.Log;
 
-public final class LightMetalChatProvider implements UnaryOperator<String> {
+public final class LightMetalChat implements UnaryOperator<String> {
 
     @Override
     public String apply(String requestJson) {
