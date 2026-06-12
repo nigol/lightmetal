@@ -106,6 +106,10 @@ public final class MessagesHandler implements HttpHandler {
     }
 
     JSONObject toAnthropicJson(Response resp) {
+        return toAnthropicJson(resp, lm.metadata().name().orElse("lightmetal"));
+    }
+
+    public static JSONObject toAnthropicJson(Response resp, String modelName) {
         var content = new JSONArray();
         String stopReason;
         if (resp.hasToolCalls()) {
@@ -132,7 +136,7 @@ public final class MessagesHandler implements HttpHandler {
                 .put("id", "msg_" + System.nanoTime())
                 .put("type", "message")
                 .put("role", "assistant")
-                .put("model", lm.metadata().name().orElse("lightmetal"))
+                .put("model", modelName)
                 .put("content", content)
                 .put("stop_reason", stopReason)
                 .put("stop_sequence", JSONObject.NULL)
