@@ -7,6 +7,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import lm.configuration.entity.GenerationConfig;
+import lm.prompting.entity.AssistantText;
+import lm.prompting.entity.AssistantToolCalls;
+import lm.prompting.entity.ToolResult;
+import lm.prompting.entity.Turn;
+import lm.prompting.entity.UserText;
+import lm.prompting.entity.UserToolResults;
 import lm.tools.entity.Tool;
 import lm.tools.entity.ToolCall;
 
@@ -16,13 +22,6 @@ public record AnthropicMessagesRequest(
         List<Tool> tools,
         int maxTokens,
         float temperature) {
-
-    public sealed interface Turn permits UserText, AssistantText, AssistantToolCalls, UserToolResults {}
-    public record UserText(String text) implements Turn {}
-    public record AssistantText(String text) implements Turn {}
-    public record AssistantToolCalls(String text, List<ToolCall> calls) implements Turn {}
-    public record UserToolResults(List<ToolResult> results) implements Turn {}
-    public record ToolResult(String callId, String content) {}
 
     public static AnthropicMessagesRequest from(JSONObject root, GenerationConfig defaults) {
         var system = root.optString("system", "");

@@ -7,11 +7,16 @@ import lm.configuration.control.ZCfg;
 import lm.configuration.entity.ContextParams;
 import lm.configuration.entity.GenerationConfig;
 import lm.configuration.entity.Token;
-import lm.http.entity.AnthropicMessagesRequest.UserText;
+import lm.generation.control.TokenAccumulator;
+import lm.generation.entity.Response;
+import lm.prompting.entity.Turn;
+import lm.prompting.entity.UserText;
 import lm.inspection.boundary.Inspector;
 import lm.inspection.entity.GGUFMetadata;
 import lm.logging.control.Log;
+import lm.prompting.control.ChatTemplate;
 import lm.prompting.control.ModelFamily;
+import lm.tools.entity.Tool;
 
 public final class LightMetal implements AutoCloseable {
 
@@ -48,19 +53,47 @@ public final class LightMetal implements AutoCloseable {
     }
 
     public Stream<Token> generate(String systemPrompt, String userPrompt, GenerationConfig cfg) {
-        var template = ModelFamily.from(metadata)
-                .orElseThrow(() -> new IllegalStateException(
-                        "no ModelFamily entry for GGUF name=" + metadata.name().orElse("?")
-                                + " — add it to lm.prompting.control.ModelFamily"))
-                .template();
+        var template = template();
         var rendered = template.render(systemPrompt, List.of(),
                 List.of(new UserText(userPrompt)));
         return template.tagChannels(complete(rendered, cfg));
     }
 
+    public Response chat(String userPrompt, GenerationConfig cfg) {
+        return chat("", List.of(), List.of(new UserText(userPrompt)), cfg);
+    }
+
+    public Response chat(String system, List<Tool> tools, List<Turn> turns, GenerationConfig cfg) {
+        var template = template();
+        var prompt = template.render(system, tools, turns);
+        var effective = cfg.withStopSequences(template.stopSequences());
+        Log.debug("[prompt template=" + template.getClass().getSimpleName() + "]\n" + prompt + "\n[/prompt]");
+        var acc = new TokenAccumulator();
+        synchronized (this) {
+            reset();
+            try (var stream = complete(prompt, effective)) {
+                stream.forEach(acc);
+            }
+        }
+        return Response.from(template.parse(acc.text()), acc.count(), cfg.maxTokens(), estimateTokens(prompt));
+    }
+
+    static int estimateTokens(String prompt) {
+        if (prompt == null || prompt.isEmpty()) return 0;
+        return Math.max(1, prompt.length() / 4);
+    }
+
     public Stream<Token> complete(String formattedPrompt, GenerationConfig cfg) {
         var promptTokens = ctx.tokenize(formattedPrompt, addBos);
         return ctx.generate(promptTokens, cfg);
+    }
+
+    public ChatTemplate template() {
+        return ModelFamily.from(metadata)
+                .orElseThrow(() -> new IllegalStateException(
+                        "no ModelFamily entry for GGUF name=" + metadata.name().orElse("?")
+                                + " — add it to lm.prompting.control.ModelFamily"))
+                .template();
     }
 
     public void reset() {

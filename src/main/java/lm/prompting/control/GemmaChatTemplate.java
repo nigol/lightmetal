@@ -9,7 +9,7 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import lm.configuration.entity.Token;
-import lm.http.entity.AnthropicMessagesRequest.Turn;
+import lm.prompting.entity.Turn;
 import lm.tools.control.ToolCallParser;
 import lm.tools.entity.Tool;
 import lm.tools.entity.ToolCall;

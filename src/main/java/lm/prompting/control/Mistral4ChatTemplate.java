@@ -2,7 +2,7 @@ package lm.prompting.control;
 
 import java.util.List;
 
-import lm.http.entity.AnthropicMessagesRequest.Turn;
+import lm.prompting.entity.Turn;
 import lm.tools.control.ToolCallParser;
 import lm.tools.entity.Tool;
 

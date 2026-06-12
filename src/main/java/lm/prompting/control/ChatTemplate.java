@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import lm.configuration.entity.Token;
-import lm.http.entity.AnthropicMessagesRequest.Turn;
+import lm.prompting.entity.Turn;
 import lm.tools.control.ToolCallParser;
 import lm.tools.entity.Tool;
 

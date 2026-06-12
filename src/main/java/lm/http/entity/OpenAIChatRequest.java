@@ -8,12 +8,12 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import lm.configuration.entity.GenerationConfig;
-import lm.http.entity.AnthropicMessagesRequest.AssistantText;
-import lm.http.entity.AnthropicMessagesRequest.AssistantToolCalls;
-import lm.http.entity.AnthropicMessagesRequest.ToolResult;
-import lm.http.entity.AnthropicMessagesRequest.Turn;
-import lm.http.entity.AnthropicMessagesRequest.UserText;
-import lm.http.entity.AnthropicMessagesRequest.UserToolResults;
+import lm.prompting.entity.AssistantText;
+import lm.prompting.entity.AssistantToolCalls;
+import lm.prompting.entity.ToolResult;
+import lm.prompting.entity.Turn;
+import lm.prompting.entity.UserText;
+import lm.prompting.entity.UserToolResults;
 import lm.tools.entity.Tool;
 import lm.tools.entity.ToolCall;
 

@@ -3,6 +3,8 @@ package lm.http.control;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -14,50 +16,30 @@ import com.sun.net.httpserver.HttpHandler;
 import lm.configuration.control.ZCfg;
 import lm.configuration.entity.GenerationConfig;
 import lm.generation.boundary.LightMetal;
+import lm.generation.control.TokenAccumulator;
+import lm.generation.entity.Response;
 import lm.http.entity.AnthropicMessagesRequest;
-import lm.http.entity.AnthropicMessagesRequest.AssistantText;
-import lm.http.entity.AnthropicMessagesRequest.UserText;
+import lm.prompting.entity.AssistantText;
+import lm.prompting.entity.UserText;
 import lm.http.entity.OpenAIChatRequest;
 import lm.logging.control.Log;
-import lm.inspection.entity.GGUFMetadata;
-import lm.prompting.control.ChatTemplate;
-import lm.prompting.control.Mistral4ChatTemplate;
-import lm.prompting.control.ModelFamily;
 import lm.prompting.control.PromptTemplate;
-import lm.tools.control.ToolCallParser;
 
 public final class ChatCompletionsHandler implements HttpHandler {
 
     private final LightMetal lm;
-    private final String template;
-    private final ChatTemplate chatTemplate;
+    private final String legacyOverride;
 
     public ChatCompletionsHandler(LightMetal lm) {
         this.lm = lm;
         var override = ZCfg.string("template", "");
-        if (isLegacyBasic(override)) {
-            this.template = override;
-            this.chatTemplate = new Mistral4ChatTemplate();
-        } else {
-            var family = resolveFamily(lm.metadata(), override);
-            this.template = family.name();
-            this.chatTemplate = family.template();
-        }
-        Log.system("[template=" + this.template + "]");
+        this.legacyOverride = isLegacyBasic(override) ? override : "";
+        Log.system("[template=" + (legacyOverride.isEmpty()
+                ? lm.template().getClass().getSimpleName() : legacyOverride) + "]");
     }
 
     private static boolean isLegacyBasic(String override) {
         return "v0.3".equals(override) || "v3".equals(override) || "basic".equals(override);
-    }
-
-    private static ModelFamily resolveFamily(GGUFMetadata metadata, String override) {
-        if (!override.isBlank()) {
-            return ModelFamily.valueOf(override);
-        }
-        return ModelFamily.from(metadata)
-                .orElseThrow(() -> new IllegalStateException(
-                        "no ModelFamily entry for GGUF name=" + metadata.name().orElse("?")
-                                + " — add it to lm.prompting.control.ModelFamily"));
     }
 
     @Override
@@ -115,30 +97,37 @@ public final class ChatCompletionsHandler implements HttpHandler {
 
     JSONObject generate(OpenAIChatRequest req) {
         var msgReq = req.toAnthropicMessagesRequest();
-        var prompt = buildPrompt(msgReq);
-        var cfg = baseConfig(req).withStopSequences(chatTemplate.stopSequences());
-        Log.debug("[prompt template=" + template + "]\n" + prompt + "\n[/prompt]");
+        var cfg = baseConfig(req);
+        var response = legacyOverride.isEmpty()
+                ? lm.chat(msgReq.system(), msgReq.tools(), msgReq.turns(), cfg)
+                : generateLegacy(msgReq, cfg);
+        return toOpenAIJson(response);
+    }
 
-        var raw = new StringBuilder();
-        var emitted = new long[1];
+    Response generateLegacy(AnthropicMessagesRequest req, GenerationConfig cfg) {
+        var prompt = PromptTemplate.mistralChat(req.system(), flattenForBasic(req));
+        Log.debug("[prompt template=" + legacyOverride + "]\n" + prompt + "\n[/prompt]");
+        var acc = new TokenAccumulator();
         synchronized (lm) {
             lm.reset();
             try (var stream = lm.complete(prompt, cfg)) {
-                stream.forEach(t -> {
-                    raw.append(t.text());
-                    emitted[0]++;
-                });
+                stream.forEach(acc);
             }
         }
+        var reason = acc.count() >= cfg.maxTokens()
+                ? Response.StopReason.MAX_TOKENS : Response.StopReason.END_TURN;
+        return new Response(acc.text(), List.of(), reason,
+                estimateTokens(prompt), (int) acc.count());
+    }
 
-        var parsed = chatTemplate.parse(raw.toString());
+    JSONObject toOpenAIJson(Response resp) {
         var message = new JSONObject().put("role", "assistant");
         String finishReason;
-        if (parsed instanceof ToolCallParser.Calls calls) {
-            var leading = calls.leadingText();
+        if (resp.hasToolCalls()) {
+            var leading = resp.text();
             message.put("content", leading.isBlank() ? JSONObject.NULL : leading);
             var toolCalls = new JSONArray();
-            for (var call : calls.calls()) {
+            for (var call : resp.calls()) {
                 toolCalls.put(new JSONObject()
                         .put("id", call.id())
                         .put("type", "function")
@@ -149,9 +138,11 @@ public final class ChatCompletionsHandler implements HttpHandler {
             message.put("tool_calls", toolCalls);
             finishReason = "tool_calls";
         } else {
-            var text = parsed instanceof ToolCallParser.Text txt ? txt.text() : raw.toString();
-            message.put("content", text);
-            finishReason = emitted[0] >= req.maxTokens() ? "length" : "stop";
+            message.put("content", resp.text());
+            finishReason = switch (resp.reason()) {
+                case MAX_TOKENS -> "length";
+                case END_TURN, TOOL_USE -> "stop";
+            };
         }
 
         var choice = new JSONObject()
@@ -159,8 +150,6 @@ public final class ChatCompletionsHandler implements HttpHandler {
                 .put("message", message)
                 .put("finish_reason", finishReason);
 
-        var promptTokens = estimateTokens(prompt);
-        var completionTokens = (int) emitted[0];
         return new JSONObject()
                 .put("id", "chatcmpl-" + System.nanoTime())
                 .put("object", "chat.completion")
@@ -168,20 +157,13 @@ public final class ChatCompletionsHandler implements HttpHandler {
                 .put("model", lm.metadata().name().orElse("lightmetal"))
                 .put("choices", new JSONArray().put(choice))
                 .put("usage", new JSONObject()
-                        .put("prompt_tokens", promptTokens)
-                        .put("completion_tokens", completionTokens)
-                        .put("total_tokens", promptTokens + completionTokens));
+                        .put("prompt_tokens", resp.inputTokens())
+                        .put("completion_tokens", resp.outputTokens())
+                        .put("total_tokens", resp.inputTokens() + resp.outputTokens()));
     }
 
-    String buildPrompt(AnthropicMessagesRequest req) {
-        return switch (template) {
-            case "v0.3", "v3", "basic" -> PromptTemplate.mistralChat(req.system(), flattenForBasic(req));
-            default -> chatTemplate.render(req.system(), req.tools(), req.turns());
-        };
-    }
-
-    static java.util.List<String> flattenForBasic(AnthropicMessagesRequest req) {
-        var out = new java.util.ArrayList<String>(req.turns().size());
+    static List<String> flattenForBasic(AnthropicMessagesRequest req) {
+        var out = new ArrayList<String>(req.turns().size());
         for (var turn : req.turns()) {
             switch (turn) {
                 case UserText u -> out.add(u.text());
