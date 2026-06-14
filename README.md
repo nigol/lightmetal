@@ -92,8 +92,10 @@ only need a base URL switch.
 ### OpenAI-compatible endpoints
 
 For tools that speak the OpenAI Chat Completions protocol (Continue, Aider,
-Open WebUI, LangChain defaults, etc.), the same server also exposes
-`POST /v1/chat/completions` and `GET /v1/models`. The `model` field is
+Open WebUI, LangChain defaults, langchain4j, the DevoxxGenie IntelliJ
+plugin, LM Studio, etc.), the same server also exposes
+`POST /v1/chat/completions` and `GET /v1/models` (aliased as
+`GET /api/v1/models` for LM Studio-style clients). The `model` field is
 accepted and ignored — the loaded GGUF wins, exactly as with `/v1/messages`.
 
 ```
@@ -102,9 +104,21 @@ curl -s http://localhost:8080/v1/chat/completions \
   -d '{"model":"lightmetal","messages":[{"role":"user","content":"say hi"}],"max_tokens":64}'
 ```
 
-Streaming (`stream: true`) is not yet supported and returns HTTP 400.
+`stream: true` is supported as Server-Sent Events: standard
+`chat.completion.chunk` deltas (role → content → optional `tool_calls`
+→ `finish_reason` → optional usage when `stream_options.include_usage`
+is set → `[DONE]`). Content is byte-for-byte identical to the
+non-streaming response — tool-call markers are held back until the
+closing tag arrives so an in-progress call never leaks into the text
+stream.
+
 `tools` are mapped onto the existing Mistral tool pipeline and surface
-in the response as standard OpenAI `tool_calls`.
+in the response (and streamed deltas) as standard OpenAI `tool_calls`.
+
+The models payload includes LM Studio rich fields (`display_name`,
+`max_context_length`) so LM Studio-aware clients can discover the loaded
+model and its served context window — reflecting `context.length`, not
+the GGUF's training maximum.
 
 ## Embed via SPI
 
@@ -207,7 +221,7 @@ Mac Studio M3 Ultra, 128 GB unified memory:
 ```mermaid
 flowchart TD
     CLI["lightmetal CLI<br/>App.java (Java 25)"]
-    HTTP["lm.http.boundary.HttpAPI<br/>/v1/messages · /v1/chat/completions · /v1/models"]
+    HTTP["lm.http.boundary.HttpAPI<br/>/v1/messages · /v1/chat/completions (SSE) · /v1/models · /api/v1/models"]
     SPI["lm.generation.boundary.LightMetalText · LightMetalChat<br/>ServiceLoader&lt;BinaryOperator · UnaryOperator&gt;"]
     LM["lm.generation.boundary.LightMetal<br/>load · generate : Stream&lt;Token&gt;"]
     Model["lm.backend.control.Model<br/>FFM → libllama.dylib"]
