@@ -29,8 +29,18 @@ public final class LightMetalChat implements UnaryOperator<String>, AutoCloseabl
         var root = new JSONObject(new JSONTokener(requestJson));
         // Route through ModelCatalog so bare filenames (e.g. "gemma-4-26B...gguf")
         // resolve under models.directory the same way the CLI's -model flag does.
-        // Absolute paths pass through unchanged.
-        var modelPath = ModelCatalog.resolve(root.getString("model"));
+        // Absolute paths pass through unchanged. Fall back to ZCfg so embedders
+        // (e.g. zsmith) can omit `model` and let lightmetal's own config own it.
+        var modelName = root.optString("model", null);
+        if (modelName == null || modelName.isBlank()) {
+            modelName = ZCfg.string("model");
+        }
+        if (modelName == null || modelName.isBlank()) {
+            throw new IllegalStateException(
+                    "no model specified — set `model` in the request payload or in "
+                            + "~/.lightmetal/app.properties");
+        }
+        var modelPath = ModelCatalog.resolve(modelName);
         ensureLoaded(modelPath);
         var req = AnthropicMessagesRequest.from(root, GenerationConfig.fromProperties());
         var resp = lm.chat(req.system(), req.tools(), req.turns(), config(req));
