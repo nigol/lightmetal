@@ -16,6 +16,12 @@ public enum ModelFamily {
 
     GEMMA_4("gemma-4", GemmaChatTemplate::new),
     GEMMA_3("gemma-3", GemmaChatTemplate::new),
+    // Must precede MISTRAL_NEMO: "nemotron" contains the fragment "nemo", so without
+    // this earlier, more-specific entry a Nemotron GGUF would silently match
+    // MISTRAL_NEMO and be rendered with the Mistral template. The factory below is a
+    // placeholder reusing Mistral4ChatTemplate — Llama-Nemotron actually needs a
+    // Llama-3-style template, which does not exist yet.
+    NEMOTRON("nemotron", Mistral4ChatTemplate::new),
     MISTRAL_NEMO("nemo", Mistral4ChatTemplate::new),
     DEVSTRAL("devstral", Mistral4ChatTemplate::new),
     MISTRAL_4("mistral", Mistral4ChatTemplate::new);
