@@ -45,7 +45,7 @@ FUNCTIONS=(
 
 STRUCTS=(
   llama_model_params llama_context_params llama_batch
-  llama_sampler_chain_params llama_token_data llama_token_data_array
+  llama_sampler_chain_params
   llama_chat_message
 )
 
