@@ -12,6 +12,19 @@ import lm.http.control.MessagesHandler;
 import lm.http.entity.AnthropicMessagesRequest;
 import lm.logging.control.Log;
 
+/**
+ * Zero-coupling embedding boundary: exposes lightmetal as a plain
+ * {@code UnaryOperator<String>} — an Anthropic Messages JSON request in, an
+ * Anthropic Messages JSON response out. Hosts (e.g. zsmith) discover it via
+ * {@link java.util.ServiceLoader} and drive it through {@code String} alone,
+ * never importing {@code lm.*} types; config is republished as system
+ * properties so they can read settings via {@code System.getProperty(...)}.
+ *
+ * <p>Holds a single-model session: the first {@link #apply} fixes the model
+ * path, and a later call with a different model swaps it (close old, load new).
+ * Steady-state agents reuse the same path and hit the warm fast path every turn.
+ * {@code apply} is serialized — one native context, one in-flight request.
+ */
 public final class LightMetalChat implements UnaryOperator<String>, AutoCloseable {
 
     LightMetal lm;

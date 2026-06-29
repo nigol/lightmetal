@@ -7,6 +7,19 @@ import lm.configuration.entity.GenerationConfig;
 import lm.generation.entity.Tps;
 import lm.logging.control.Log;
 
+/**
+ * Zero-coupling embedding boundary for one-shot text completion: a plain
+ * {@code BinaryOperator<String>} — {@code (model, prompt) -> generated text}.
+ * Hosts discover it via {@link java.util.ServiceLoader} and drive it through
+ * {@code String} alone, never importing {@code lm.*} types; config is
+ * republished as system properties for {@code System.getProperty(...)} access.
+ *
+ * <p>Stateless per call: each invocation resolves the model, loads it, streams
+ * the completion, and closes it again — no session is retained (contrast
+ * {@link LightMetalChat}, which keeps a warm single-model session). Reasoning
+ * ({@code "thought"}) tokens are dropped from the result; only the visible
+ * answer is returned, with throughput logged for multi-token runs.
+ */
 public final class LightMetalText implements BinaryOperator<String> {
 
     // Eager so embedders can read config (model.directory, defaults, etc.) the moment
