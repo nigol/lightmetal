@@ -52,53 +52,12 @@ public final class GemmaChatTemplate implements ChatTemplate {
     @Override
     public Stream<Token> tagChannels(Stream<Token> tokens) {
         return tokens.gather(Gatherer.<Token, ChannelFilter, Token>ofSequential(
-                () -> new ChannelFilter(enableThinking),
+                () -> new ChannelFilter(PromptTemplate.GEMMA_CHANNEL_CLOSE, enableThinking),
                 (filter, in, down) -> {
                     filter.consume(in).forEach(down::push);
                     return true;
                 },
                 (filter, down) -> filter.flush().forEach(down::push)));
-    }
-
-    static final class ChannelFilter {
-        private static final String CLOSE = PromptTemplate.GEMMA_CHANNEL_CLOSE;
-        private final StringBuilder pending = new StringBuilder();
-        private String channel;
-        private int lastId;
-
-        ChannelFilter(boolean enableThinking) {
-            this.channel = enableThinking ? "thought" : "final";
-        }
-
-        List<Token> consume(Token in) {
-            lastId = in.id();
-            pending.append(in.text());
-            var out = new ArrayList<Token>();
-            while (true) {
-                var idx = pending.indexOf(CLOSE);
-                if (idx >= 0) {
-                    if (idx > 0) {
-                        out.add(new Token(in.id(), pending.substring(0, idx), channel));
-                    }
-                    pending.delete(0, idx + CLOSE.length());
-                    channel = "final";
-                    continue;
-                }
-                var safeLen = pending.length() - (CLOSE.length() - 1);
-                if (safeLen > 0) {
-                    out.add(new Token(in.id(), pending.substring(0, safeLen), channel));
-                    pending.delete(0, safeLen);
-                }
-                return out;
-            }
-        }
-
-        List<Token> flush() {
-            if (pending.isEmpty()) return List.of();
-            var out = List.of(new Token(lastId, pending.toString(), channel));
-            pending.setLength(0);
-            return out;
-        }
     }
 
     @Override

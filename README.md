@@ -191,6 +191,7 @@ MacBook Pro M5 Max, 128 GB unified memory:
 |---|---:|---:|---:|
 | Gemma-4-E2B-It | 33 | 0.3 s | 94.9 |
 | Gemma-4-26B-A4B-It | 22 | 0.2 s | 90.0 |
+| Nemotron-3-Nano-30B-A3B | 25 | 0.3 s | 88.6 |
 | Mistral Small 4 119B 2603 | 30 | 0.4 s | 74.5 |
 | Mistral-7B-Instruct-v0.3 | 31 | 0.5 s | 63.9 |
 | Gemma-4-E4B-It | 42 | 0.7 s | 60.5 |

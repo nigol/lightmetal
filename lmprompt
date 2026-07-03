@@ -35,6 +35,10 @@ void main(String... args) throws Exception {
     var thoughtCount = new AtomicLong();
     var firstTokenNanos = new AtomicLong();
 
+    // System.exit inside the try-with-resources would skip LightMetal.close();
+    // the llama.cpp shutdown hook then frees the Metal backend with live buffers
+    // and crashes with GGML_ASSERT([rsets->data count] == 0).
+    var failed = false;
     try (var lm = LightMetal.load(modelPath)) {
         var modelName = lm.metadata().name().orElse(modelPath.getFileName().toString());
         try (var stream = lm.generate(prompt, GenerationConfig.fromProperties())) {
@@ -55,11 +59,14 @@ void main(String... args) throws Exception {
 
         if (count.get() < 2) {
             System.err.println(name + ": got " + count.get() + " tokens, need at least 2 for tps");
-            System.exit(1);
+            failed = true;
+        } else {
+            var thought = thoughtCount.get() > 0 ? ", " + thoughtCount.get() + " thought" : "";
+            IO.println("[" + modelName + ": " + Tps.measure(count.get(), firstTokenNanos.get()) + thought + "]");
         }
-
-        var thought = thoughtCount.get() > 0 ? ", " + thoughtCount.get() + " thought" : "";
-        IO.println("[" + modelName + ": " + Tps.measure(count.get(), firstTokenNanos.get()) + thought + "]");
+    }
+    if (failed) {
+        System.exit(1);
     }
 }
 

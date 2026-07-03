@@ -116,6 +116,168 @@ public interface PromptTemplate {
         return sb.toString();
     }
 
+    String NEMOTRON_IM_START = "<|im_start|>";
+    String NEMOTRON_IM_END = "<|im_end|>";
+    String NEMOTRON_THINK_OPEN = "<think>";
+    String NEMOTRON_THINK_CLOSE = "</think>";
+    String NEMOTRON_TOOL_CALL_OPEN = "<tool_call>";
+    String NEMOTRON_TOOL_CALL_CLOSE = "</tool_call>";
+    // Verbatim from the GGUF chat template (Nemotron-3-Nano) — the model is trained
+    // against this exact wording, so it must not be reformatted.
+    String NEMOTRON_TOOL_INSTRUCTIONS = """
+            If you choose to call a function ONLY reply in the following format with NO suffix:
+
+            <tool_call>
+            <function=example_function_name>
+            <parameter=example_parameter_1>
+            value_1
+            </parameter>
+            <parameter=example_parameter_2>
+            This is the value for the second parameter
+            that can span
+            multiple lines
+            </parameter>
+            </function>
+            </tool_call>
+
+            <IMPORTANT>
+            Reminder:
+            - Function calls MUST follow the specified format: an inner <function=...></function> block must be nested within <tool_call></tool_call> XML tags
+            - Required parameters MUST be specified
+            - You may provide optional reasoning for your function call in natural language BEFORE the function call, but NOT after
+            - If there is no function call available, answer the question like normal with your current knowledge and do not tell the user about function calls
+            </IMPORTANT>""";
+
+    static String nemotron(String system, List<Tool> tools, List<Turn> turns) {
+        var enableThinking = ZCfg.bool("nemotron.enable_thinking", false);
+        var sb = new StringBuilder();
+        // The GGUF template emits the system header even when there is no system
+        // prompt and no tools — an empty system turn is part of the trained format.
+        sb.append(NEMOTRON_IM_START).append("system\n");
+        var hasSystem = system != null && !system.isBlank();
+        if (hasSystem) sb.append(system.strip());
+        if (tools != null && !tools.isEmpty()) {
+            if (hasSystem) sb.append("\n\n");
+            appendNemotronTools(sb, tools);
+        }
+        sb.append(NEMOTRON_IM_END).append('\n');
+        for (var turn : turns) {
+            appendNemotronTurn(sb, turn);
+        }
+        sb.append(NEMOTRON_IM_START).append("assistant\n");
+        sb.append(enableThinking
+                ? NEMOTRON_THINK_OPEN + "\n"
+                : NEMOTRON_THINK_OPEN + NEMOTRON_THINK_CLOSE);
+        return sb.toString();
+    }
+
+    private static void appendNemotronTurn(StringBuilder sb, Turn turn) {
+        switch (turn) {
+            case UserText u -> sb.append(NEMOTRON_IM_START).append("user\n")
+                    .append(u.text() == null ? "" : u.text())
+                    .append(NEMOTRON_IM_END).append('\n');
+            case AssistantText a -> sb.append(NEMOTRON_IM_START).append("assistant\n")
+                    .append(nemotronAssistantContent(a.text()))
+                    .append(NEMOTRON_IM_END).append('\n');
+            case AssistantToolCalls a -> {
+                var content = nemotronAssistantContent(a.text());
+                sb.append(NEMOTRON_IM_START).append("assistant\n").append(content);
+                // the GGUF template joins an empty think block and <tool_call> directly
+                if (content.length() > (NEMOTRON_THINK_OPEN + NEMOTRON_THINK_CLOSE).length()) {
+                    sb.append('\n');
+                }
+                for (var call : a.calls()) {
+                    sb.append(NEMOTRON_TOOL_CALL_OPEN).append('\n')
+                            .append("<function=").append(call.name()).append(">\n");
+                    appendNemotronParameters(sb, call.input());
+                    sb.append("</function>\n").append(NEMOTRON_TOOL_CALL_CLOSE).append('\n');
+                }
+                sb.append(NEMOTRON_IM_END).append('\n');
+            }
+            case UserToolResults r -> {
+                sb.append(NEMOTRON_IM_START).append("user\n");
+                for (var result : r.results()) {
+                    sb.append("<tool_response>\n")
+                            .append(result.content() == null ? "" : result.content())
+                            .append("\n</tool_response>\n");
+                }
+                sb.append(NEMOTRON_IM_END).append('\n');
+            }
+        }
+    }
+
+    // History keeps only the answer: reasoning is truncated (like the GGUF template
+    // does for past turns) and every assistant message carries the empty think block
+    // the model expects in its own prior output.
+    static String nemotronAssistantContent(String text) {
+        var t = text == null ? "" : text;
+        var close = t.lastIndexOf(NEMOTRON_THINK_CLOSE);
+        if (close >= 0) {
+            t = t.substring(close + NEMOTRON_THINK_CLOSE.length());
+        } else {
+            var open = t.indexOf(NEMOTRON_THINK_OPEN);
+            if (open >= 0) t = t.substring(0, open);
+        }
+        return NEMOTRON_THINK_OPEN + NEMOTRON_THINK_CLOSE + t.strip();
+    }
+
+    private static void appendNemotronParameters(StringBuilder sb, JSONObject input) {
+        if (input == null) return;
+        for (var key : new TreeSet<>(input.keySet())) {
+            sb.append("<parameter=").append(key).append(">\n");
+            var value = input.get(key);
+            sb.append(value instanceof JSONObject || value instanceof JSONArray
+                    ? pythonJson(value)
+                    : String.valueOf(value));
+            sb.append("\n</parameter>\n");
+        }
+    }
+
+    private static void appendNemotronTools(StringBuilder sb, List<Tool> tools) {
+        sb.append("# Tools\n\nYou have access to the following functions:\n\n<tools>");
+        for (var tool : tools) {
+            sb.append("\n<function>\n<name>").append(tool.name()).append("</name>");
+            if (tool.description() != null && !tool.description().isBlank()) {
+                sb.append("\n<description>").append(tool.description().strip()).append("</description>");
+            }
+            sb.append("\n<parameters>");
+            var schema = tool.inputSchema();
+            var props = schema == null ? null : schema.optJSONObject("properties");
+            if (props != null) {
+                for (var key : new TreeSet<>(props.keySet())) {
+                    appendNemotronParameterDeclaration(sb, key, props.optJSONObject(key));
+                }
+            }
+            var required = schema == null ? null : schema.optJSONArray("required");
+            if (required != null && !required.isEmpty()) {
+                sb.append("\n<required>").append(pythonJson(required)).append("</required>");
+            }
+            sb.append("\n</parameters>\n</function>");
+        }
+        sb.append("\n</tools>\n\n").append(NEMOTRON_TOOL_INSTRUCTIONS);
+    }
+
+    private static void appendNemotronParameterDeclaration(StringBuilder sb, String name, JSONObject fields) {
+        sb.append("\n<parameter>\n<name>").append(name).append("</name>");
+        if (fields == null) {
+            sb.append("\n</parameter>");
+            return;
+        }
+        var type = fields.optString("type", null);
+        if (type != null) {
+            sb.append("\n<type>").append(type).append("</type>");
+        }
+        var description = fields.optString("description", null);
+        if (description != null && !description.isEmpty()) {
+            sb.append("\n<description>").append(description.strip()).append("</description>");
+        }
+        var enums = fields.optJSONArray("enum");
+        if (enums != null) {
+            sb.append("\n<enum>").append(pythonJson(enums)).append("</enum>");
+        }
+        sb.append("\n</parameter>");
+    }
+
     String GEMMA_QUOTE = "<|\"|>";
     String GEMMA_TURN_OPEN = "<|turn>";
     String GEMMA_TURN_CLOSE = "<turn|>";
